@@ -35,8 +35,11 @@ def metric_card(title, value, sub, icon="✅", bg="#2196f3"):
     </div>
     """
 
-# --- Upload File ---
-uploaded_file = st.file_uploader("📂 Upload Contract Excel File", type="xlsx")
+
+# --- Upload File in Sidebar ---
+st.sidebar.header("📂 Upload Your File")
+uploaded_file = st.sidebar.file_uploader("Upload Contract Excel File (.xlsx)", type="xlsx") 
+
 
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
@@ -88,17 +91,128 @@ if uploaded_file:
         )
         fig_gantt.update_yaxes(autorange="reversed")
         st.plotly_chart(fig_gantt, use_container_width=True)
-# --- Time-Based Progress Category ---
-    with section_card("📈 Project Progress Categories (Based on Time Elapsed)"):
-        bins = [-1, 30, 50, 80, 100]
-        labels = ['<30%', '30-50%', '50-80%', '>80%']
-        df['TIME_GONE_CAT'] = pd.cut(df['TIME_GONE'], bins=bins, labels=labels)
 
-        progress_counts = df['TIME_GONE_CAT'].value_counts().sort_index().reset_index()
-        progress_counts.columns = ['Progress Range', 'Count']
-        fig_progress = px.bar(progress_counts, x='Progress Range', y='Count', color='Progress Range',
-                            title="Project Progress by Time Elapsed", text='Count')
-        st.plotly_chart(fig_progress, use_container_width=True)
+
+        import plotly.graph_objects as go
+
+        # --- Color Logic ---
+        def get_color(pct):
+            return '#2ECC71' if pct >= 50 else '#E74C3C'  # Green if ≥50%, Red otherwise
+
+        # --- Build Horizontal Bar Chart with Conditional Color and %
+        def build_kpi_bar(df_subset, title):
+            fig = go.Figure()
+            for _, row in df_subset.iterrows():
+                color = get_color(row['REALIZED_PCT'])
+
+                # Realized
+                fig.add_trace(go.Bar(
+                    y=[row['KONTRAK']],
+                    x=[row['REALIZATION']],
+                    name='REALIZED',
+                    orientation='h',
+                    marker=dict(color=color),
+                    text=f"{row['REALIZED_PCT']}%",
+                    textposition='inside',
+                    hovertemplate=(
+                        f"<b>{row['KONTRAK']}</b><br>"
+                        f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
+                        f"Realized: {row['REALIZATION']:.1f} M<br>"
+                        f"Remaining: {row['REMAINING']:.1f} M<br>"
+                        f"% Realized: {row['REALIZED_PCT']}%"
+                    ),
+                    showlegend=False
+                ))
+
+                # Remaining
+                fig.add_trace(go.Bar(
+                    y=[row['KONTRAK']],
+                    x=[row['REMAINING']],
+                    name='REMAINING',
+                    orientation='h',
+                    marker=dict(color='#D0D3D4'),
+                    text=f"{row['REMAINING']:.1f} M",
+                    textposition='inside',
+                    hovertemplate=(
+                        f"<b>{row['KONTRAK']}</b><br>"
+                        f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
+                        f"Realized: {row['REALIZATION']:.1f} M<br>"
+                        f"Remaining: {row['REMAINING']:.1f} M<br>"
+                        f"% Realized: {row['REALIZED_PCT']}%"
+                    ),
+                    showlegend=False
+                ))
+
+            fig.update_layout(
+                barmode='stack',
+                title=title,
+                xaxis=dict(
+                    title="Contract Value (Millions)",
+                    tickformat=".0f",
+                    showgrid=True,
+                    zeroline=True,
+                    rangeslider=dict(visible=True)  # Enables zoom via slider
+                ),
+                yaxis=dict(
+                    title="Project",
+                    automargin=True
+                ),
+                height=600,
+                margin=dict(l=300, r=50, t=60, b=50),
+                dragmode=False  # Disable drag-to-zoom
+            )
+            return fig
+
+        # --- Prepare Data ---
+        df_chart = df.copy()
+        df_chart.rename(columns={
+            'Nilai Kontrak 2023-2024': 'CONTRACT_VALUE',
+            'Realisasi On  2023-2024': 'REALIZATION'
+        }, inplace=True)
+
+        df_chart = df_chart[df_chart['CONTRACT_VALUE'].notna() & df_chart['REALIZATION'].notna()].copy()
+        df_chart['REMAINING'] = df_chart['CONTRACT_VALUE'] - df_chart['REALIZATION']
+        df_chart[['REALIZATION', 'REMAINING']] = df_chart[['REALIZATION', 'REMAINING']].clip(lower=0)
+        df_chart['REALIZED_PCT'] = (df_chart['REALIZATION'] / df_chart['CONTRACT_VALUE'] * 100).round(1)
+        df_chart.sort_values(by='CONTRACT_VALUE', ascending=False, inplace=True)
+
+        # Split top 5 and others
+        top5 = df_chart.head(5)
+        others = df_chart.iloc[5:]
+
+        # --- Display in Streamlit ---
+        with section_card("📊 Top 5 Contracts (Realization % and Conditional Color)"):
+            fig_top5 = build_kpi_bar(top5, "Top 5 Contracts by Value")
+            st.plotly_chart(fig_top5, use_container_width=True, config={
+                'scrollZoom': False,  # disable scroll-to-zoom
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
+                'displayModeBar': 'always'
+            })
+
+        with section_card("📊 Remaining Contracts (Scaled View)"):
+            fig_others = build_kpi_bar(others, "Remaining Contracts by Value")
+            st.plotly_chart(fig_others, use_container_width=True, config={
+                'scrollZoom': False,  # disable scroll-to-zoom
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
+                'displayModeBar': 'always'
+            })
+
+
+
+
+    # --- Time-Based Progress Category ---
+        with section_card("📈 Project Progress Categories (Based on Time Elapsed)"):
+            bins = [-1, 30, 50, 80, 100]
+            labels = ['<30%', '30-50%', '50-80%', '>80%']
+            df['TIME_GONE_CAT'] = pd.cut(df['TIME_GONE'], bins=bins, labels=labels)
+
+            progress_counts = df['TIME_GONE_CAT'].value_counts().sort_index().reset_index()
+            progress_counts.columns = ['Progress Range', 'Count']
+            fig_progress = px.bar(progress_counts, x='Progress Range', y='Count', color='Progress Range',
+                                title="Project Progress by Time Elapsed", text='Count')
+            st.plotly_chart(fig_progress, use_container_width=True)
 
     # --- Status Pie Chart and Filter Table ---
     with section_card("📊 Contract Status Distribution and Filter"):
@@ -124,4 +238,4 @@ if uploaded_file:
         st.dataframe(df[['KONTRAK', 'START', 'END', 'DURATION', 'STATUS', 'PROGRESS', 'TIME_GONE']].sort_values('END'), use_container_width=True)
 
 else:
-    st.info("Upload an Excel file with a 'Sheet1' containing the contract data.")
+    st.info("Upload an Excel file containing the contract data.")
