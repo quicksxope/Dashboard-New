@@ -13,12 +13,14 @@ st.set_page_config(page_title="📁 Contract Summary Dashboard", layout="wide")
 from auth import require_login
 require_login()
 
+
+def get_file_hash(file):
+    return hashlib.md5(file.getvalue()).hexdigest()
+
 # URL raw file dari GitHub (ganti sesuai repo lo)
 GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Rekap_Vendor_Pembayaran_Final.xlsx"
 GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/data_kontrak_new.xlsx"
 
-def get_file_hash(file):
-    return hashlib.md5(file.getvalue()).hexdigest()
 
 @st.cache_data(ttl=3600)
 def load_excel_from_github(url):
