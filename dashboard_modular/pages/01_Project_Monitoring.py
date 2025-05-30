@@ -526,6 +526,9 @@ def main():
     if not project_file:
         st.warning("⚠️ Unable to load any project file. Please check your upload or GitHub URL.")
         return
+        
+    original_df = load_data(uploaded_project_file)
+    df = original_df.copy()
 
     kontrak_opts = ['All'] + sorted(original_df['KONTRAK'].dropna().unique())
     selected_kontrak = st.sidebar.selectbox("Filter by KONTRAK", kontrak_opts)
