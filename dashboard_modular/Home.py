@@ -6,6 +6,7 @@ from auth import require_login
 from io import BytesIO
 import hashlib
 from datetime import datetime
+import requests
 
 
 st.set_page_config(page_title="Dashboard Home", layout="wide")
