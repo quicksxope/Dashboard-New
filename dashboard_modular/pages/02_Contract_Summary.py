@@ -36,11 +36,11 @@ uploaded_contract_file = st.sidebar.file_uploader("📁 Upload Contract Data", t
 
 # --- Financial ---
 if uploaded_financial_file:
-    file_hash = get_file_hash(uploaded_project_file)
+    file_hash = get_file_hash(uploaded_financial_file)
     if st.session_state.get("project_file_hash") != file_hash:
         st.session_state.project_file_hash = file_hash
         st.session_state.project_upload_time = datetime.now()
-    project_file = BytesIO(uploaded_project_file.getvalue())
+    financial_file = BytesIO(uploaded_financial_file.getvalue())
     st.sidebar.markdown(f"🕒 Last Project Upload: {st.session_state.project_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
 else:
     financial_file = load_excel_from_github(GITHUB_FINANCIAL_FILE_URL)
