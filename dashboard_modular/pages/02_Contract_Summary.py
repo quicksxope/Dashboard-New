@@ -88,17 +88,17 @@ def section_card(title=None):
 
 
 # --- Metric Card Function ---
-def metric_card(title, value, sub, icon="✅", bg="#2196f3"):
-    gradient = f"linear-gradient(135deg, {bg}, {bg})"
-    text_color = "#ffffff"
-    sub_color = "#e0e0e0"
-    shadow_color = "rgba(0, 0, 0, 0.3)"
+def metric_card(title, value, sub, icon="✅", bg="#6C5CE7"):
+    gradient = f"linear-gradient(135deg, {bg}, #00CEC9)"
+    text_color = "#FFFFFF"
+    sub_color = "#DADDE1"
+    shadow_color = "rgba(0, 0, 0, 0.2)"
     return f"""
-    <div class=\"metric-card\" style=\"padding:1.2rem; background:{gradient}; border-radius:1rem; box-shadow:0 3px 10px {shadow_color}; text-align:center; margin-bottom:1rem; height:100%; width:100%; max-width:100%; border:none !important; outline:none !important;\">
-        <div style=\"font-size:1.5rem; margin-bottom:0.3rem;\">{icon}</div>
-        <div style=\"font-size:1.2rem; font-weight:600; color:{text_color}; margin-bottom:0.5rem;\">{title}</div>
-        <div style=\"font-size:calc(1.5rem + 0.5vw); font-weight:700; color:{text_color}; margin:0.6rem 0;\">{value}</div>
-        <div style=\"color:{sub_color}; font-size:0.9rem;\">{sub}</div>
+    <div class=\"metric-card\" style=\"padding:1.2rem; background:{gradient}; border-radius:1.5rem; box-shadow:0 4px 12px {shadow_color}; text-align:center; margin-bottom:1.2rem; height:100%; width:100%; max-width:100%; border:none !important; outline:none !important; transition: all 0.3s ease-in-out;\">
+        <div style=\"font-size:1.8rem; margin-bottom:0.3rem;\">{icon}</div>
+        <div style=\"font-size:1.1rem; font-weight:600; color:{text_color}; margin-bottom:0.4rem; letter-spacing:0.5px;\">{title}</div>
+        <div style=\"font-size:calc(1.7rem + 0.3vw); font-weight:700; color:{text_color}; margin:0.6rem 0;\">{value}</div>
+        <div style=\"color:{sub_color}; font-size:0.85rem; letter-spacing:0.3px;\">{sub}</div>
     </div>
     """
 
