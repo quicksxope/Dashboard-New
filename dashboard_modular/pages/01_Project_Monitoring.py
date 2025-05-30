@@ -497,6 +497,7 @@ def main():
             </style>
         </head>
     """, unsafe_allow_html=True)
+    
     def get_file_hash(file):
         return hashlib.md5(file.getvalue()).hexdigest()
 
@@ -524,12 +525,13 @@ def main():
         st.sidebar.info("📥 Using default project file from GitHub")
 
     if not project_file:
-        st.warning("⚠️ Unable to load any project file. Please check your upload or GitHub URL.")
+        st.warning("⚠️ No project file available. Please upload or check GitHub URL.")
         return
-        
-    original_df = load_data(uploaded_project_file)
+
+    original_df = load_data(project_file)
     df = original_df.copy()
 
+    # Example continuation: safe to access original_df now
     kontrak_opts = ['All'] + sorted(original_df['KONTRAK'].dropna().unique())
     selected_kontrak = st.sidebar.selectbox("Filter by KONTRAK", kontrak_opts)
 
