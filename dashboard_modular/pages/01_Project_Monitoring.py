@@ -497,7 +497,17 @@ def main():
             </style>
         </head>
     """, unsafe_allow_html=True)
-    
+    def get_file_hash(file):
+        return hashlib.md5(file.getvalue()).hexdigest()
+
+    @st.cache_data(ttl=3600)
+    def load_excel_from_github(url):
+        response = requests.get(url)
+        if response.status_code == 200:
+            return BytesIO(response.content)
+        else:
+            return None
+        
     GITHUB_PROJECT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Data_project_monitoring.xlsx"
     uploaded_project_file = st.sidebar.file_uploader("📊 Upload Project Data", type="xlsx", key="project_file")
     # --- Project file ---
