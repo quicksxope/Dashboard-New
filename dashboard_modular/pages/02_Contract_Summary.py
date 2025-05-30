@@ -103,8 +103,8 @@ else:
     st.sidebar.info("📥 Using default financial file from GitHub")
 
 
-if uploaded_file:
-    df = pd.read_excel(uploaded_file)
+if uploaded_contract_file:
+    df = pd.read_excel(uploaded_contract_file)
 
     # Clean column names
     df.columns = [str(col).strip() for col in df.columns]
@@ -296,8 +296,8 @@ if uploaded_file:
             st.dataframe(filtered_df[['KONTRAK', 'START', 'END', 'DURATION', 'STATUS', 'PROGRESS', 'TIME_GONE']].sort_values('END'), use_container_width=True)
 
 
-if financial_file:
-    df_financial = pd.read_excel(financial_file)
+if uploaded_financial_file:
+    df_financial = pd.read_excel(uploaded_financial_file)
     st.success("Financial progress file loaded!")
     
     import plotly.graph_objects as go
