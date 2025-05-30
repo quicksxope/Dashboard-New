@@ -9,6 +9,50 @@ st.set_page_config(page_title="📁 Contract Summary Dashboard", layout="wide")
 from auth import require_login
 require_login()
 
+# URL raw file dari GitHub (ganti sesuai repo lo)
+GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Rekap_Vendor_Pembayaran_Final.xlsx"
+GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/data_kontrak_new.xlsx"
+
+def get_file_hash(file):
+    return hashlib.md5(file.getvalue()).hexdigest()
+
+@st.cache_data(ttl=3600)
+def load_excel_from_github(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return BytesIO(response.content)
+    else:
+        return None
+
+# --- File uploader logic ---
+uploaded_financial_file = st.sidebar.file_uploader("📊 Upload Financial Data", type="xlsx", key="financial_file")
+uploaded_contract_file = st.sidebar.file_uploader("📁 Upload Contract Data", type="xlsx", key="contract_file")
+
+# --- Financial ---
+if uploaded_financial_file:
+    file_hash = get_file_hash(uploaded_project_file)
+    if st.session_state.get("project_file_hash") != file_hash:
+        st.session_state.project_file_hash = file_hash
+        st.session_state.project_upload_time = datetime.now()
+    project_file = BytesIO(uploaded_project_file.getvalue())
+    st.sidebar.markdown(f"🕒 Last Project Upload: {st.session_state.project_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
+else:
+    financial_file = load_excel_from_github(GITHUB_PROJECT_FILE_URL)
+    st.sidebar.info("📥 Using default project file from GitHub")
+
+# --- Contract file ---
+if uploaded_contract_file:
+    file_hash = get_file_hash(uploaded_contract_file)
+    if st.session_state.get("contract_file_hash") != file_hash:
+        st.session_state.contract_file_hash = file_hash
+        st.session_state.contract_upload_time = datetime.now()
+    contract_file = BytesIO(uploaded_contract_file.getvalue())
+    st.sidebar.markdown(f"🕒 Last Contract Upload: {st.session_state.contract_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
+else:
+    contract_file = load_excel_from_github(GITHUB_CONTRACT_FILE_URL)
+    st.sidebar.info("📥 Using default contract file from GitHub")
+
+
 st.markdown("""
 <div style="
     background: linear-gradient(to right, #3498db, #2ecc71);
@@ -63,8 +107,8 @@ st.sidebar.header("💸 Upload Financial Progress")
 financial_file = st.sidebar.file_uploader("Upload Financial Progress Excel (.xlsx)", type="xlsx", key="finance")
 
 
-if uploaded_file:
-    df = pd.read_excel(uploaded_file)
+if contract_file:
+    df = pd.read_excel(contract_file)
 
     # Clean column names
     df.columns = [str(col).strip() for col in df.columns]
