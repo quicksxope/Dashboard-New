@@ -98,15 +98,6 @@ def metric_card(title, value, sub, icon="✅", bg="#2196f3"):
     </div>
     """
 
-
-# --- Upload File in Sidebar ---
-st.sidebar.header("📂 Upload Your File")
-uploaded_file = st.sidebar.file_uploader("Upload Contract Excel File (.xlsx)", type="xlsx") 
-st.sidebar.markdown("---")  # separator visual
-st.sidebar.header("💸 Upload Financial Progress")
-financial_file = st.sidebar.file_uploader("Upload Financial Progress Excel (.xlsx)", type="xlsx", key="finance")
-
-
 if contract_file:
     df = pd.read_excel(contract_file)
 
