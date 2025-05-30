@@ -507,10 +507,11 @@ def main():
             return BytesIO(response.content)
         else:
             return None
-        
+
     GITHUB_PROJECT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Data_project_monitoring.xlsx"
+
     uploaded_project_file = st.sidebar.file_uploader("📊 Upload Project Data", type="xlsx", key="project_file")
-    # --- Project file ---
+
     if uploaded_project_file:
         file_hash = get_file_hash(uploaded_project_file)
         if st.session_state.get("project_file_hash") != file_hash:
@@ -522,30 +523,9 @@ def main():
         project_file = load_excel_from_github(GITHUB_PROJECT_FILE_URL)
         st.sidebar.info("📥 Using default project file from GitHub")
 
-# --- Contract file ---
-    if not uploaded_project_file:
-        # Mobile-friendly empty state message
-        st.warning("Please upload an Excel file to continue.")
-        
-        # Show a sample of expected data format
-        st.markdown("### 📊 Sample Data Format")
-        st.markdown("""
-        The dashboard expects Excel files with the following columns:
-        - **KONTRAK**: Project identifier
-        - **JENIS PEKERJAAN**: Task description
-        - **START**: Task start date
-        - **PLAN END**: Task planned end date
-        - **STATUS**: Task status (SELESAI, DALAM PROSES, TUNDA, BELUM MULAI)
-        - **% COMPLETE**: Completion percentage (0-100)
-        - **BOBOT**: Task weight (importance)
-        """)
-        
-        # Give mobile-friendly instructions
-        st.info("👈 Tap the arrow icon in the top-left corner to open the sidebar and upload your file")
+    if not project_file:
+        st.warning("⚠️ Unable to load any project file. Please check your upload or GitHub URL.")
         return
-
-    original_df = load_data(uploaded_project_file)
-    df = original_df.copy()
 
     kontrak_opts = ['All'] + sorted(original_df['KONTRAK'].dropna().unique())
     selected_kontrak = st.sidebar.selectbox("Filter by KONTRAK", kontrak_opts)
