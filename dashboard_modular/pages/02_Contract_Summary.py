@@ -79,8 +79,13 @@ if contract_file_uploaded:
     contract_data = pd.read_excel(BytesIO(contract_file_uploaded.getvalue()))
     st.sidebar.success(f"Last Contract Upload: {st.session_state.contract_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
 else:
-    contract_data = pd.read_excel(load_excel_from_github(GITHUB_CONTRACT_FILE_URL))
-    st.sidebar.info("Using default contract file from GitHub")
+    contract_bytes = load_excel_from_github(GITHUB_CONTRACT_FILE_URL)
+    if contract_bytes:
+        contract_data = pd.read_excel(contract_bytes)
+        st.sidebar.info("Using default contract file from GitHub")
+    else:
+        st.error("Failed to load contract data from GitHub")
+        st.stop()
 
 # --- Load Financial Data ---
 if financial_file_uploaded:
@@ -91,8 +96,13 @@ if financial_file_uploaded:
     financial_data = pd.read_excel(BytesIO(financial_file_uploaded.getvalue()))
     st.sidebar.success(f"Last Financial Upload: {st.session_state.financial_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
 else:
-    financial_data = pd.read_excel(load_excel_from_github(GITHUB_FINANCIAL_FILE_URL))
-    st.sidebar.info("Using default financial file from GitHub")
+    financial_bytes = load_excel_from_github(GITHUB_FINANCIAL_FILE_URL)
+    if financial_bytes:
+        financial_data = pd.read_excel(financial_bytes)
+        st.sidebar.info("Using default financial file from GitHub")
+    else:
+        st.error("Failed to load financial data from GitHub")
+        st.stop()
 
 # --- Visualizations ---
 st.success("Data successfully loaded and ready for visualization.")
@@ -127,6 +137,7 @@ with section_card("🗖️ Gantt Chart - Contract Timelines"):
     st.plotly_chart(fig_gantt, use_container_width=True)
 
 # KPI Bar Chart
+
 def get_color(pct):
     return '#2ECC71' if pct >= 50 else '#E74C3C'
 
