@@ -2,11 +2,28 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+import plotly.graph_objects as go
+
 
 st.set_page_config(page_title="📁 Contract Summary Dashboard", layout="wide")
 from auth import require_login
 require_login()
-st.title("📁 Contract Summary Dashboard")
+
+st.markdown("""
+<div style="
+    background: linear-gradient(to right, #3498db, #2ecc71);
+    padding: 1.2rem 2rem;
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    border-radius: 12px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    margin-bottom: 1.5rem;
+">
+    Contract Summary
+</div>
+""", unsafe_allow_html=True)
 
 # --- Section Card Function ---
 def section_card(title=None):
@@ -19,6 +36,8 @@ def section_card(title=None):
         </div>
         """, unsafe_allow_html=True)
     return section
+
+
 
 # --- Metric Card Function ---
 def metric_card(title, value, sub, icon="✅", bg="#2196f3"):
@@ -36,9 +55,48 @@ def metric_card(title, value, sub, icon="✅", bg="#2196f3"):
     """
 
 
-# --- Upload File in Sidebar ---
-st.sidebar.header("📂 Upload Your File")
-uploaded_file = st.sidebar.file_uploader("Upload Contract Excel File (.xlsx)", type="xlsx") 
+
+# GitHub fallback URLs
+GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/default_contract_summary.xlsx"
+GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/default_financial_progress.xlsx"
+
+# File hash helper
+def get_file_hash(file):
+    return hashlib.md5(file.getvalue()).hexdigest()
+
+# GitHub loader
+@st.cache_data(ttl=3600)
+def load_excel_from_github(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return BytesIO(response.content)
+    return None
+
+# --- Contract File ---
+uploaded_contract_file = st.sidebar.file_uploader("Upload Contract Excel File (.xlsx)", type="xlsx")
+if uploaded_contract_file:
+    file_hash = get_file_hash(uploaded_contract_file)
+    if st.session_state.get("contract_file_hash") != file_hash:
+        st.session_state.contract_file_hash = file_hash
+        st.session_state.contract_upload_time = datetime.now()
+    contract_file = BytesIO(uploaded_contract_file.getvalue())
+    st.sidebar.success(f"🕒 Last Contract Upload: {st.session_state.contract_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
+else:
+    contract_file = load_excel_from_github(GITHUB_CONTRACT_FILE_URL)
+    st.sidebar.info("📥 Using default contract file from GitHub")
+
+# --- Financial File ---
+uploaded_financial_file = st.sidebar.file_uploader("Upload Financial Progress Excel (.xlsx)", type="xlsx", key="finance")
+if uploaded_financial_file:
+    file_hash = get_file_hash(uploaded_financial_file)
+    if st.session_state.get("financial_file_hash") != file_hash:
+        st.session_state.financial_file_hash = file_hash
+        st.session_state.financial_upload_time = datetime.now()
+    financial_file = BytesIO(uploaded_financial_file.getvalue())
+    st.sidebar.success(f"🕒 Last Financial Upload: {st.session_state.financial_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
+else:
+    financial_file = load_excel_from_github(GITHUB_FINANCIAL_FILE_URL)
+    st.sidebar.info("📥 Using default financial file from GitHub")
 
 
 if uploaded_file:
@@ -200,7 +258,7 @@ if uploaded_file:
             })
 
 
-
+       
 
     # --- Time-Based Progress Category ---
         with section_card("📈 Project Progress Categories (Based on Time Elapsed)"):
@@ -233,9 +291,87 @@ if uploaded_file:
 
             st.dataframe(filtered_df[['KONTRAK', 'START', 'END', 'DURATION', 'STATUS', 'PROGRESS', 'TIME_GONE']].sort_values('END'), use_container_width=True)
 
-    # --- Full Contract Table ---
-    with section_card("📋 Full Contract Table"):
-        st.dataframe(df[['KONTRAK', 'START', 'END', 'DURATION', 'STATUS', 'PROGRESS', 'TIME_GONE']].sort_values('END'), use_container_width=True)
+
+if financial_file:
+    df_financial = pd.read_excel(financial_file)
+    st.success("Financial progress file loaded!")
+    
+    import plotly.graph_objects as go
+
+    import plotly.graph_objects as go
+
+    def get_color(pct):
+        return '#2ECC71' if pct >= 50 else '#E74C3C'
+
+    def build_kpi_bar(df_subset, title="Progress Pembayaran (%)"):
+        fig = go.Figure()
+
+        for _, row in df_subset.iterrows():
+            kontrak_name = row['Vendor']
+            pct = row['REALIZED_PCT']
+            remaining_pct = 100 - pct
+            realized_value = row['REALIZATION']
+            remaining_value = row['REMAINING']
+            contract_value = row['CONTRACT_VALUE']
+
+            # Bar: Realisasi
+            fig.add_trace(go.Bar(
+                y=[kontrak_name],
+                x=[pct],
+                name='REALIZED (%)',
+                orientation='h',
+                marker_color=get_color(pct),
+                text=f"{pct:.1f}%",
+                textposition='inside',
+                hovertemplate=(
+                    f"<b>{kontrak_name}</b><br>"
+                    f"Total Kontrak: Rp {contract_value:,.0f}<br>"
+                    f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
+                    f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
+                ),
+                showlegend=False
+            ))
+
+            # Bar: Sisa
+            fig.add_trace(go.Bar(
+                y=[kontrak_name],
+                x=[remaining_pct],
+                name='REMAINING (%)',
+                orientation='h',
+                marker_color="#D0D3D4",
+                text=f"{remaining_pct:.1f}%",
+                textposition='inside',
+                hovertemplate=(
+                    f"<b>{kontrak_name}</b><br>"
+                    f"Total Kontrak: Rp {contract_value:,.0f}<br>"
+                    f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
+                    f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
+                ),
+                showlegend=False
+            ))
+
+        fig.update_layout(
+            barmode='stack',
+            title=title,
+            xaxis=dict(title="Progress (%)", range=[0, 100]),
+            yaxis=dict(title="", automargin=True),
+            height=700,
+            margin=dict(l=300, r=50, t=60, b=50),
+            dragmode=False
+        )
+
+        return fig
+
+    
+    with section_card("📊 Financial Progress Chart (from Uploaded File)"):
+        fig_fin = build_kpi_bar(df_financial, "Progress Pembayaran Seluruh Kontrak")
+        st.plotly_chart(fig_fin, use_container_width=True, config={
+            'scrollZoom': False,
+            'displaylogo': False,
+            'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
+            'displayModeBar': 'always'
+        })
+
 
 else:
     st.info("Upload an Excel file containing the contract data.")
