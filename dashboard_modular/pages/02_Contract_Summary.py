@@ -37,7 +37,7 @@ if uploaded_financial_file:
     project_file = BytesIO(uploaded_project_file.getvalue())
     st.sidebar.markdown(f"🕒 Last Project Upload: {st.session_state.project_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
 else:
-    financial_file = load_excel_from_github(GITHUB_PROJECT_FILE_URL)
+    financial_file = load_excel_from_github(GITHUB_FINANCIAL_FILE_URL)
     st.sidebar.info("📥 Using default project file from GitHub")
 
 # --- Contract file ---
