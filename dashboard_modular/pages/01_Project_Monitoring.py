@@ -9,6 +9,9 @@ import io
 from io import BytesIO
 import numpy as np
 import plotly.graph_objects as go
+import hashlib
+from datetime import datetime
+import requests
 
 def clean_text(x):
     if pd.isna(x):
@@ -18,6 +21,22 @@ def clean_text(x):
     return x.strip().upper()
 
 st.set_page_config(page_title="📊 PT INCA Dashboard", layout="wide")
+
+st.markdown("""
+<div style="
+    background: linear-gradient(to right, #3498db, #2ecc71);
+    padding: 1.2rem 2rem;
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    border-radius: 12px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    margin-bottom: 1.5rem;
+">
+    Project Monitoring
+</div>
+""", unsafe_allow_html=True)
 
 # Mobile styling
 st.markdown("""
@@ -479,10 +498,22 @@ def main():
         </head>
     """, unsafe_allow_html=True)
     
-    st.markdown("<h2 style='margin-bottom: 1rem;'>📋 Project Monitoring Dashboard</h2>", unsafe_allow_html=True)
-    
-    uploaded_file = st.sidebar.file_uploader("📂 Upload Excel File", type="xlsx")
-    if not uploaded_file:
+    GITHUB_PROJECT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Data_project_monitoring.xlsx"
+    uploaded_project_file = st.sidebar.file_uploader("📊 Upload Project Data", type="xlsx", key="project_file")
+    # --- Project file ---
+    if uploaded_project_file:
+        file_hash = get_file_hash(uploaded_project_file)
+        if st.session_state.get("project_file_hash") != file_hash:
+            st.session_state.project_file_hash = file_hash
+            st.session_state.project_upload_time = datetime.now()
+        project_file = BytesIO(uploaded_project_file.getvalue())
+        st.sidebar.markdown(f"🕒 Last Project Upload: {st.session_state.project_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    else:
+        project_file = load_excel_from_github(GITHUB_PROJECT_FILE_URL)
+        st.sidebar.info("📥 Using default project file from GitHub")
+
+# --- Contract file ---
+    if not uploaded_project_file:
         # Mobile-friendly empty state message
         st.warning("Please upload an Excel file to continue.")
         
@@ -503,7 +534,7 @@ def main():
         st.info("👈 Tap the arrow icon in the top-left corner to open the sidebar and upload your file")
         return
 
-    original_df = load_data(uploaded_file)
+    original_df = load_data(uploaded_project_file)
     df = original_df.copy()
 
     kontrak_opts = ['All'] + sorted(original_df['KONTRAK'].dropna().unique())
@@ -1237,7 +1268,7 @@ def main():
 
     # --- Late Tasks Section ---
     with section_card("🕰 Overdue Tasks"):
-        late_df = df[(pd.to_datetime(df['PLAN END'], errors='coerce') < datetime.today()) & (df['STATUS'] != 'SELESAI')]
+        late_df = df[(pd.to_datetime(df['PLAN END'], errors='coerce') < datetime.today()) & (df['STATUS'].str.upper() != 'SELESAI')]
         late_df['LATE DAYS'] = (datetime.today() - pd.to_datetime(late_df['PLAN END'], errors='coerce')).dt.days
 
         if not late_df.empty:
@@ -1252,15 +1283,20 @@ def main():
                 st.markdown(card("Total Late Days", f"{total_late_days}", "Total days overdue", "⚠️", "#ffe0e0"), unsafe_allow_html=True)
 
             with colL2:
-                late_df_display = late_df[['KONTRAK', 'JENIS PEKERJAAN', 'LATE DAYS']]
+                late_df_display = late_df[['KONTRAK', 'JENIS PEKERJAAN', '% COMPLETE', 'SUB AREA PEKERJAAN', 'STATUS', 'LATE DAYS']]
                 late_df_display = late_df_display.rename(columns={
                     'KONTRAK': 'Project',
                     'JENIS PEKERJAAN': 'Task',
+                    '% COMPLETE': 'Progress',
+                    'SUB AREA PEKERJAAN': 'Sub Area',
+                    'STATUS': 'Status',
                     'LATE DAYS': 'Days Late'
                 })
                 st.dataframe(late_df_display, use_container_width=True, height=350)
         else:
             st.info("No overdue tasks found.")
+
+
 
 
     # --- Task Recommendations & Prioritization ---
@@ -1347,54 +1383,40 @@ def main():
         else:
             st.info("No active tasks to recommend.")
 
-
-
-    # --- Project Zone Map ---
+        # --- Project Zone Map ---
     with section_card("🗺️ Zone-Based Project Progress Map"):
         try:
-            # Import the map_zones module
             import map_zones
-            
-            # Create a simple method to add "AREA PEKERJAAN" if not present
+            import numpy as np
+        
+
             if 'AREA PEKERJAAN' not in original_df.columns and 'JENIS PEKERJAAN' in original_df.columns:
                 st.info("No 'AREA PEKERJAAN' column found. Using task descriptions to map work areas.")
-            
-            # Get progress data by zone
+
             progress_by_zone = map_zones.extract_zone_progress(original_df)
-            
-            # Create colored map based on progress data 
             colored_map_html = map_zones.generate_colored_map(progress_by_zone)
-            
-            # Create two columns - one for the map and one for the legend
+
             map_col, legend_col = st.columns([2, 1])
-            
-            # Display the simplified map using a more robust approach
+
             with map_col:
                 st.markdown("<h4>Project Site Map</h4>", unsafe_allow_html=True)
-                
-                # Create a simple DataFrame for the zones
                 zone_data = []
                 for zone, progress in progress_by_zone.items():
                     zone_data.append({
                         'Zone': zone,
                         'Progress': progress,
-                        'Status': 'High' if progress >= 75 else ('Medium' if progress >= 50 else 'Low'),
+                        'Status': 'High' if progress >= 50 else ('Medium' if progress >= 30 else 'Low'),
                         'Display': f"{zone}: {progress:.1f}%"
                     })
-                
                 zone_df = pd.DataFrame(zone_data)
-                
-                # Define a simplified color scale
                 color_scale = {
-                    'Low': 'rgb(255,0,0)',      # Red for low progress
-                    'Medium': 'rgb(255,255,0)',  # Yellow for medium progress
-                    'High': 'rgb(0,128,0)'       # Green for high progress
+                    'Low': '#ef4444',    # Red-500
+                    'Medium': '#facc15', # Yellow-400
+                    'High': '#10b981',   # Emerald-500
                 }
-                
-                # Create a simple bar chart for the zones
                 fig = px.bar(
-                    zone_df, 
-                    x='Zone', 
+                    zone_df,
+                    x='Zone',
                     y='Progress',
                     color='Status',
                     color_discrete_map=color_scale,
@@ -1402,8 +1424,6 @@ def main():
                     labels={'Progress': 'Completion %', 'Zone': 'Project Zone'},
                     height=400
                 )
-                
-                # Update the layout
                 fig.update_layout(
                     title="Project Progress by Zone",
                     xaxis_title="",
@@ -1414,165 +1434,339 @@ def main():
                     plot_bgcolor='rgba(0,0,0,0.05)',
                     margin=dict(l=40, r=40, t=60, b=40)
                 )
-                
-                # Display the chart
                 st.plotly_chart(fig, use_container_width=True)
                 st.caption("Simplified zone progress visualization")
-            
-            # Display the progress legend only
+
             with legend_col:
                 st.markdown("<h4>Progress Legend</h4>", unsafe_allow_html=True)
                 st.markdown("""
                 <small>
                 Progress level indicators:<br>
-                🟥 Red = 0–49% Complete<br>
-                🟨 Yellow = 50–74% Complete<br>
-                🟩 Green = 75–100% Complete
+                🔴 Red = 0–29% Complete<br>
+                🟨 Yellow = 30–49% Complete<br>
+                🟢 Green = 50–100% Complete
                 </small>
                 """, unsafe_allow_html=True)
 
-                
-            # Show Sub-Area Progress Chart
             st.markdown("<h4>Progress by Sub-Area Pekerjaan</h4>", unsafe_allow_html=True)
-            
-            # Get progress data by sub-area if available
+
             if 'SUB AREA PEKERJAAN' in original_df.columns:
-                # Group by sub-area and calculate weighted average progress
                 if 'BOBOT' in original_df.columns:
-                    # Use weighted average if weights are available
                     sub_area_progress = original_df.groupby('SUB AREA PEKERJAAN').apply(
-                        lambda x: (x['% COMPLETE'] * x['BOBOT']).sum() / x['BOBOT'].sum() 
+                        lambda x: (x['% COMPLETE'] * x['BOBOT']).sum() / x['BOBOT'].sum()
                         if x['BOBOT'].sum() > 0 else x['% COMPLETE'].mean()
                     )
                 else:
-                    # Otherwise use simple average
                     sub_area_progress = original_df.groupby('SUB AREA PEKERJAAN')['% COMPLETE'].mean()
-                
-                # Convert to DataFrame for visualization
+
                 sub_area_df = pd.DataFrame({
                     'Sub Area': sub_area_progress.index,
                     'Progress': sub_area_progress.values,
                 })
-                
-                # Add status column for color-coding
-                sub_area_df['Status'] = sub_area_df['Progress'].apply(
-                    lambda x: 'High' if x >= 75 else ('Medium' if x >= 50 else 'Low')
+            elif 'JENIS PEKERJAAN' in original_df.columns:
+                st.info("No 'SUB AREA PEKERJAAN' column found. Creating sub-areas based on task descriptions.")
+                original_df['EXTRACTED_SUB_AREA'] = original_df['JENIS PEKERJAAN'].apply(
+                    lambda x: str(x).split(' - ')[0] if ' - ' in str(x) else str(x)
                 )
-                
-                # Sort by progress (descending)
-                sub_area_df = sub_area_df.sort_values('Progress', ascending=False)
-                
-                # Create bar chart for sub-areas
-                sub_area_fig = px.bar(
-                    sub_area_df,
-                    x='Sub Area',
-                    y='Progress',
-                    color='Status',
-                    color_discrete_map=color_scale,
-                    text=sub_area_df['Sub Area'] + ': ' + sub_area_df['Progress'].round(1).astype(str) + '%',
-                    labels={'Progress': 'Completion %', 'Sub Area': 'Sub Area Pekerjaan'},
-                    height=500
-                )
-                
-                # Update layout
-                sub_area_fig.update_layout(
-                    title="Project Progress by Sub-Area",
-                    xaxis_title="",
-                    yaxis_title="Completion %",
-                    yaxis=dict(range=[0, 100]),
-                    legend_title="Progress Status",
-                    font=dict(size=12),
-                    plot_bgcolor='rgba(0,0,0,0.05)',
-                    margin=dict(l=40, r=40, t=60, b=80)
-                )
-                
-                # Handle long bar labels if needed
-                if len(sub_area_df) > 5:
-                    sub_area_fig.update_layout(
-                        xaxis_tickangle=-45,
-                        height=min(500 + (len(sub_area_df) - 5) * 15, 800)  # Adjust height based on number of bars
+                if 'BOBOT' in original_df.columns:
+                    sub_area_progress = original_df.groupby('EXTRACTED_SUB_AREA').apply(
+                        lambda x: (x['% COMPLETE'] * x['BOBOT']).sum() / x['BOBOT'].sum()
+                        if x['BOBOT'].sum() > 0 else x['% COMPLETE'].mean()
                     )
-                
-                # Display the chart
-                st.plotly_chart(sub_area_fig, use_container_width=True)
-                st.caption("Progress breakdown by sub-area pekerjaan")
-            else:
-                # Try to extract sub-area information from 'JENIS PEKERJAAN' or other available columns
-                if 'JENIS PEKERJAAN' in original_df.columns:
-                    st.info("No 'SUB AREA PEKERJAAN' column found. Creating sub-areas based on task descriptions.")
-                    
-                    # Extract sub-areas by taking the first part of task descriptions
-                    original_df['EXTRACTED_SUB_AREA'] = original_df['JENIS PEKERJAAN'].apply(
-                        lambda x: str(x).split(' - ')[0] if ' - ' in str(x) else str(x)
-                    )
-                    
-                    # Group by extracted sub-area
-                    if 'BOBOT' in original_df.columns:
-                        sub_area_progress = original_df.groupby('EXTRACTED_SUB_AREA').apply(
-                            lambda x: (x['% COMPLETE'] * x['BOBOT']).sum() / x['BOBOT'].sum() 
-                            if x['BOBOT'].sum() > 0 else x['% COMPLETE'].mean()
-                        )
-                    else:
-                        sub_area_progress = original_df.groupby('EXTRACTED_SUB_AREA')['% COMPLETE'].mean()
-                    
-                    # Convert to DataFrame and prepare for visualization
-                    sub_area_df = pd.DataFrame({
-                        'Sub Area': sub_area_progress.index,
-                        'Progress': sub_area_progress.values,
-                    })
-                    
-                    # Add status column for color-coding
-                    sub_area_df['Status'] = sub_area_df['Progress'].apply(
-                        lambda x: 'High' if x >= 75 else ('Medium' if x >= 50 else 'Low')
-                    )
-                    
-                    # Sort by progress (descending)
-                    sub_area_df = sub_area_df.sort_values('Progress', ascending=False)
-                    
-                    # Create bar chart for sub-areas
-                    sub_area_fig = px.bar(
-                        sub_area_df,
-                        x='Sub Area',
-                        y='Progress',
-                        color='Status',
-                        color_discrete_map=color_scale,
-                        text=sub_area_df['Sub Area'] + ': ' + sub_area_df['Progress'].round(1).astype(str) + '%',
-                        labels={'Progress': 'Completion %', 'Sub Area': 'Extracted Sub-Area'},
-                        height=500
-                    )
-                    
-                    # Update layout
-                    sub_area_fig.update_layout(
-                        title="Project Progress by Extracted Sub-Area",
-                        xaxis_title="",
-                        yaxis_title="Completion %",
-                        yaxis=dict(range=[0, 100]),
-                        legend_title="Progress Status",
-                        font=dict(size=12),
-                        plot_bgcolor='rgba(0,0,0,0.05)',
-                        margin=dict(l=40, r=40, t=60, b=80)
-                    )
-                    
-                    # Handle long bar labels if needed
-                    if len(sub_area_df) > 5:
-                        sub_area_fig.update_layout(
-                            xaxis_tickangle=-45,
-                            height=min(500 + (len(sub_area_df) - 5) * 15, 800)  # Adjust height based on number of bars
-                        )
-                    
-                    # Display the chart
-                    st.plotly_chart(sub_area_fig, use_container_width=True)
-                    st.caption("Progress breakdown by extracted sub-area")
                 else:
-                    st.warning("No columns found for sub-area analysis. Please add 'SUB AREA PEKERJAAN' or similar to your data.")
+                    sub_area_progress = original_df.groupby('EXTRACTED_SUB_AREA')['% COMPLETE'].mean()
+                sub_area_df = pd.DataFrame({
+                    'Sub Area': sub_area_progress.index,
+                    'Progress': sub_area_progress.values,
+                })
+            else:
+                st.warning("No columns found for sub-area analysis. Please add 'SUB AREA PEKERJAAN' or similar to your data.")
+                raise StopIteration
+
+            # --- Assign status, size, and abbreviation ---
+            sub_area_df['Status'] = sub_area_df['Progress'].apply(
+                lambda x: 'High' if x >= 50 else ('Medium' if x >= 30 else 'Low')
+            )
+            sub_area_df = sub_area_df.sort_values('Progress', ascending=False)
+            sub_area_df['Size'] = sub_area_df['Progress'].apply(lambda p: max(p * 2, 12))  # set min bubble size = 5
+
+            import re
+
+            # Fungsi untuk bikin abbreviation bersih dari simbol
+            def generate_abbreviation(name):
+                # Hilangkan simbol (&, -, dll), hanya ambil huruf
+                cleaned = re.sub(r'[^A-Za-z\s]', '', name.upper())
+                words = cleaned.split()
+                if len(words) >= 2:
+                    return ''.join(w[0] for w in words[:3])  # ambil sampai 3 huruf kalau bisa
+                return cleaned[:3]  # fallback: ambil 3 huruf pertama
+
+            # Tambahkan angka pembeda jika abbrev duplikat
+            abbrev_counts = {}
+            abbrevs = []
+            for name in sub_area_df['Sub Area']:
+                base = generate_abbreviation(name)
+                if base not in abbrev_counts:
+                    abbrev_counts[base] = 1
+                    abbrevs.append(base)
+                else:
+                    abbrev_counts[base] += 1
+                    abbrevs.append(f"{base}{abbrev_counts[base]}")
+            sub_area_df['Abbrev'] = abbrevs
+
+            
+
+           
+            # --- Radial layout: bigger bubbles closer to center ---
+            np.random.seed(42)
+
+            # Sort descending by size so biggest bubbles get lowest radius
+            sub_area_df = sub_area_df.sort_values('Size', ascending=False).reset_index(drop=True)
+
+            # Rank from 0.1 to 1.0: smaller rank = closer to center
+            ranks = np.linspace(0.1, 1.0, len(sub_area_df))
+
+            # Optional: emphasize distance of small bubbles
+            r = np.power(ranks, 1.5)  # or np.sqrt(ranks) for tighter grouping
+
+            theta = np.random.uniform(0, 2 * np.pi, len(sub_area_df))
+
+            # Compute positions
+            sub_area_df['X'] = r * np.cos(theta)
+            sub_area_df['Y'] = r * np.sin(theta)
+
+
+
+
+
+           
+            # --- Force-directed bubble chart (HTML embed) ---
+            import streamlit.components.v1 as components
+
+            bubble_data = sub_area_df[['Abbrev', 'Progress', 'Status', 'Size']].copy()
+            bubble_data['Color'] = bubble_data['Status'].map(color_scale)
+            bubble_data['SubArea'] = sub_area_df['Sub Area']
+
+
+            # Generate JSON-like structure for JS
+            bubbles_json = bubble_data.to_dict(orient='records')
+
+            html_code = '''
+<html>
+<head>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body style="margin:0; background-color:#fff;">
+<svg viewBox="0 0 1200 900" width="100%" height="800" preserveAspectRatio="xMidYMid meet"></svg>
+
+<!-- Panel Info -->
+<div id="info-panel"
+ style="
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #f9fafb;
+  border: 1px solid #ddd;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #111;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  display: none;
+  max-width: 240px;
+  z-index: 99;
+  word-wrap: break-word;
+  white-space: normal;
+  line-height: 1.4;
+  position: fixed;
+">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <div id="info-title" style="font-weight: bold; margin-bottom: 6px;"></div>
+    <button onclick="hideInfo()" style="
+      background: none;
+      border: none;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      color: #888;
+    ">✕</button>
+  </div>
+  <div id="info-body"></div>
+</div>
+
+<script>
+const svgElem = d3.select("svg");
+const zoomLayer = svgElem.append("g");
+
+svgElem.call(
+  d3.zoom()
+    .scaleExtent([1, 4])
+    .on("zoom", function(event) {
+      const scale = event.transform.k;
+      zoomLayer.attr("transform", scale === 1 ? null : event.transform);
+    })
+);
+
+const data = ''' + str(bubbles_json) + ''';
+
+const width = 1200;
+const height = 900;
+
+// Define gradients for each bubble
+const defs = svgElem.append("defs");
+
+data.forEach((d, i) => {
+  const grad = defs.append("radialGradient")
+    .attr("id", "grad" + i)
+    .attr("cx", "50%")
+    .attr("cy", "50%")
+    .attr("r", "50%");
+
+  grad.append("stop")
+    .attr("offset", "0%")
+    .attr("stop-color", d.Color)
+    .attr("stop-opacity", 0.3);
+
+  grad.append("stop")
+    .attr("offset", "100%")
+    .attr("stop-color", d.Color)
+    .attr("stop-opacity", 1);
+});
+
+// Simulation
+const simulation = d3.forceSimulation(data)
+  .alpha(0.6)
+  .alphaDecay(0)
+  .velocityDecay(0.12)
+  .force("charge", d3.forceManyBody().strength(0))
+  .force("collision", d3.forceCollide().radius(d => d.Size + 2).strength(1))
+  .force("floatX", d3.forceX().strength(() => (Math.random() - 0.5) * 0.0004))
+  .force("floatY", d3.forceY().strength(() => (Math.random() - 0.5) * 0.0004))
+  .on("tick", ticked);
+
+setInterval(() => {
+  simulation
+    .force("floatX", d3.forceX().strength(() => (Math.random() - 0.5) * 0.0004))
+    .force("floatY", d3.forceY().strength(() => (Math.random() - 0.5) * 0.0004))
+    .alpha(0.3)
+    .restart();
+}, 4000);
+
+let selectedNode = null;
+let selectedNodeElem = null;
+let originalRadius = null;
+
+const node = zoomLayer.selectAll("g")
+  .data(data)
+  .enter().append("g")
+  .style("cursor", "pointer")
+  .on("click", function(event, d) {
+    if (selectedNode === d) {
+      hideInfo();
+      return;
+    }
+
+    if (selectedNode) {
+      selectedNode.fx = null;
+      selectedNode.fy = null;
+      d3.select(selectedNodeElem).select("circle")
+        .transition().duration(300)
+        .attr("r", originalRadius);
+    }
+
+    selectedNode = d;
+    selectedNodeElem = this;
+    originalRadius = d.Size;
+
+    d.fx = d.x;
+    d.fy = d.y;
+    d3.select(this).select("circle")
+      .transition().duration(300)
+      .attr("r", d.Size * 1.2);
+
+    d3.select("#info-title").text(d.SubArea);
+    d3.select("#info-body").html(`
+      <strong>Progress:</strong> ${d.Progress.toFixed(1)}%<br/>
+      <strong>Status:</strong> ${d.Status}
+    `);
+    d3.select("#info-panel").style("display", "block");
+  });
+
+node.append("circle")
+  .attr("r", d => d.Size)
+  .attr("fill", (d, i) => `url(#grad${i})`)
+  .attr("stroke", "#fff")
+  .attr("stroke-width", 1.5);
+
+node.append("text")
+  .text(d => d.Abbrev)
+  .attr("text-anchor", "middle")
+  .attr("dy", "-0.3em")
+  .attr("font-size", d => Math.max(8, d.Size / 2.5) + "px")
+  .attr("fill", "#111")
+  .style("pointer-events", "none");
+
+node.append("text")
+  .text(d => `${d.Progress.toFixed(1)}%`)
+  .attr("text-anchor", "middle")
+  .attr("dy", "1em")
+  .attr("font-size", d => Math.max(6, d.Size / 3.5) + "px")
+  .attr("fill", "#111")
+  .style("pointer-events", "none");
+
+function ticked() {
+  node.each(d => {
+    d.x = Math.max(d.Size, Math.min(width - d.Size, d.x));
+    d.y = Math.max(d.Size, Math.min(height - d.Size, d.y));
+  });
+  node.attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+function hideInfo() {
+  d3.select("#info-panel").style("display", "none");
+
+  if (selectedNode) {
+    selectedNode.fx = null;
+    selectedNode.fy = null;
+    d3.select(selectedNodeElem).select("circle")
+      .transition().duration(300)
+      .attr("r", originalRadius);
+    selectedNode = null;
+    selectedNodeElem = null;
+  }
+}
+</script>
+</body>
+</html>
+'''
+
+
+
+
+
+
+            col1, col2 = st.columns([3, 1])
+
+            with col1:
+                components.html(html_code, height=720)
+                st.caption("🧲 Force-directed bubble map – no overlaps guaranteed")
+
+            with col2:
+                st.markdown("### 📘 Abbreviation Legend")
+                legend_table = pd.DataFrame({
+                    'Abbrev': sub_area_df['Abbrev'],
+                    'Full Name': sub_area_df['Sub Area']
+                }).sort_values('Abbrev')
+                st.dataframe(legend_table, use_container_width=True, hide_index=True)
+            
+
         except Exception as e:
             st.error(f"Could not display zone map: {str(e)}")
             st.info("Make sure you've uploaded a file with 'AREA PEKERJAAN' or 'JENIS PEKERJAAN' columns.")
-    
-   
-            
 
-    
+                
+            
     st.success("✅ Dashboard rendered successfully.")
 
 if __name__ == "__main__":
