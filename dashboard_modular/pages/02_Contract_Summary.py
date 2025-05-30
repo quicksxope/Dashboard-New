@@ -12,8 +12,8 @@ st.set_page_config(page_title="📁 Contract Summary Dashboard", layout="wide")
 require_login()
 
 # --- GitHub fallback URLs ---
-GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/contract_summary.xlsx"
-GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/financial_progress.xlsx"
+GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/data_kontrak_new.xlsx"
+GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Rekap_Vendor_Pembayaran_Final.xlsx"
 
 # --- Utility functions ---
 def get_file_hash(file):
