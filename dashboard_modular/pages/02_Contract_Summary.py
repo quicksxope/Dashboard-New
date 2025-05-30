@@ -21,10 +21,15 @@ def get_file_hash(file):
 
 @st.cache_data(ttl=3600)
 def load_excel_from_github(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        return BytesIO(response.content)
-    return None
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return BytesIO(response.content)
+        else:
+            return None
+    except Exception as e:
+        st.warning(f"Error fetching from GitHub: {e}")
+        return None
 
 # --- UI Title ---
 st.markdown("""
@@ -98,8 +103,12 @@ if financial_file_uploaded:
 else:
     financial_bytes = load_excel_from_github(GITHUB_FINANCIAL_FILE_URL)
     if financial_bytes:
-        financial_data = pd.read_excel(financial_bytes)
-        st.sidebar.info("Using default financial file from GitHub")
+        try:
+            financial_data = pd.read_excel(financial_bytes)
+            st.sidebar.info("Using default financial file from GitHub")
+        except Exception as e:
+            st.error(f"Failed to read financial data from GitHub: {e}")
+            st.stop()
     else:
         st.error("Failed to load financial data from GitHub")
         st.stop()
