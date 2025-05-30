@@ -1,18 +1,32 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
 import plotly.graph_objects as go
 import hashlib
 import requests
 from io import BytesIO
-
-
+from datetime import datetime
+from auth import require_login
 
 st.set_page_config(page_title="📁 Contract Summary Dashboard", layout="wide")
-from auth import require_login
 require_login()
 
+# --- GitHub fallback URLs ---
+GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/default_contract_summary.xlsx"
+GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/default_financial_progress.xlsx"
+
+# --- Utility functions ---
+def get_file_hash(file):
+    return hashlib.md5(file.getvalue()).hexdigest()
+
+@st.cache_data(ttl=3600)
+def load_excel_from_github(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return BytesIO(response.content)
+    return None
+
+# --- UI Title ---
 st.markdown("""
 <div style="
     background: linear-gradient(to right, #3498db, #2ecc71);
@@ -23,359 +37,119 @@ st.markdown("""
     border-radius: 12px;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-    margin-bottom: 1.5rem;
-">
+    margin-bottom: 1.5rem;">
     Contract Summary
 </div>
 """, unsafe_allow_html=True)
 
-# --- Section Card Function ---
+# --- UI Components ---
 def section_card(title=None):
     section = st.container()
-    section_id = f"section_{title.replace(' ', '_').lower() if title else 'no_title'}"
     if title:
         section.markdown(f"""
-        <div id=\"{section_id}_header\" style=\"background: linear-gradient(to right, #3498db, #1abc9c); color: white; padding: 12px 15px; border-radius: 10px 10px 0 0; margin-bottom: 0; font-weight: 600; font-size: 1.2rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);\">
+        <div style="background: linear-gradient(to right, #3498db, #1abc9c); color: white; padding: 12px 15px; 
+                    border-radius: 10px 10px 0 0; margin-bottom: 0; font-weight: 600; font-size: 1.2rem;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
             {title}
         </div>
         """, unsafe_allow_html=True)
     return section
 
-
-
-# --- Metric Card Function ---
 def metric_card(title, value, sub, icon="✅", bg="#2196f3"):
-    gradient = f"linear-gradient(135deg, {bg}, {bg})"
-    text_color = "#ffffff"
-    sub_color = "#e0e0e0"
-    shadow_color = "rgba(0, 0, 0, 0.3)"
     return f"""
-    <div class=\"metric-card\" style=\"padding:1.2rem; background:{gradient}; border-radius:1rem; box-shadow:0 3px 10px {shadow_color}; text-align:center; margin-bottom:1rem; height:100%; width:100%; max-width:100%; border:none !important; outline:none !important;\">
-        <div style=\"font-size:1.5rem; margin-bottom:0.3rem;\">{icon}</div>
-        <div style=\"font-size:1.2rem; font-weight:600; color:{text_color}; margin-bottom:0.5rem;\">{title}</div>
-        <div style=\"font-size:calc(1.5rem + 0.5vw); font-weight:700; color:{text_color}; margin:0.6rem 0;\">{value}</div>
-        <div style=\"color:{sub_color}; font-size:0.9rem;\">{sub}</div>
+    <div style="padding:1.2rem; background:linear-gradient(135deg, {bg}, {bg}); border-radius:1rem;
+        box-shadow:0 3px 10px rgba(0, 0, 0, 0.3); text-align:center; margin-bottom:1rem;">
+        <div style="font-size:1.5rem;">{icon}</div>
+        <div style="font-size:1.2rem; font-weight:600; color:#fff; margin-bottom:0.5rem;">{title}</div>
+        <div style="font-size:2rem; font-weight:700; color:#fff;">{value}</div>
+        <div style="color:#e0e0e0; font-size:0.9rem;">{sub}</div>
     </div>
     """
 
+# --- Upload Area ---
+contract_file_uploaded = st.sidebar.file_uploader("Upload Contract Excel File (.xlsx)", type="xlsx")
+financial_file_uploaded = st.sidebar.file_uploader("Upload Financial Progress Excel (.xlsx)", type="xlsx", key="finance")
 
-
-# GitHub fallback URLs
-GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/contract_summary.xlsx"
-GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Rekap_Vendor_Pembayaran_Final.xlsx"
-
-# File hash helper
-def get_file_hash(file):
-    return hashlib.md5(file.getvalue()).hexdigest()
-
-# GitHub loader
-@st.cache_data(ttl=3600)
-def load_excel_from_github(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        return BytesIO(response.content)
-    return None
-
-# --- Contract File ---
-uploaded_contract_file = st.sidebar.file_uploader("Upload Contract Excel File (.xlsx)", type="xlsx")
-if uploaded_contract_file:
-    file_hash = get_file_hash(uploaded_contract_file)
+# --- Load Contract Data ---
+if contract_file_uploaded:
+    file_hash = get_file_hash(contract_file_uploaded)
     if st.session_state.get("contract_file_hash") != file_hash:
         st.session_state.contract_file_hash = file_hash
         st.session_state.contract_upload_time = datetime.now()
-    contract_file = BytesIO(uploaded_contract_file.getvalue())
-    st.sidebar.success(f"🕒 Last Contract Upload: {st.session_state.contract_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    contract_data = pd.read_excel(BytesIO(contract_file_uploaded.getvalue()))
+    st.sidebar.success(f"Last Contract Upload: {st.session_state.contract_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
 else:
-    contract_file = load_excel_from_github(GITHUB_CONTRACT_FILE_URL)
-    st.sidebar.info("📥 Using default contract file from GitHub")
+    contract_data = pd.read_excel(load_excel_from_github(GITHUB_CONTRACT_FILE_URL))
+    st.sidebar.info("Using default contract file from GitHub")
 
-# --- Financial File ---
-uploaded_financial_file = st.sidebar.file_uploader("Upload Financial Progress Excel (.xlsx)", type="xlsx", key="finance")
-if uploaded_financial_file:
-    file_hash = get_file_hash(uploaded_financial_file)
+# --- Load Financial Data ---
+if financial_file_uploaded:
+    file_hash = get_file_hash(financial_file_uploaded)
     if st.session_state.get("financial_file_hash") != file_hash:
         st.session_state.financial_file_hash = file_hash
         st.session_state.financial_upload_time = datetime.now()
-    financial_file = BytesIO(uploaded_financial_file.getvalue())
-    st.sidebar.success(f"🕒 Last Financial Upload: {st.session_state.financial_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    financial_data = pd.read_excel(BytesIO(financial_file_uploaded.getvalue()))
+    st.sidebar.success(f"Last Financial Upload: {st.session_state.financial_upload_time.strftime('%Y-%m-%d %H:%M:%S')}")
 else:
-    financial_file = load_excel_from_github(GITHUB_FINANCIAL_FILE_URL)
-    st.sidebar.info("📥 Using default financial file from GitHub")
+    financial_data = pd.read_excel(load_excel_from_github(GITHUB_FINANCIAL_FILE_URL))
+    st.sidebar.info("Using default financial file from GitHub")
 
+# --- Visualizations ---
+st.success("Data successfully loaded and ready for visualization.")
 
-if uploaded_contract_file:
-    df = pd.read_excel(uploaded_contract_file)
+# Clean contract columns
+contract_data.columns = [str(col).strip() for col in contract_data.columns]
+contract_data.rename(columns={
+    'Start Date': 'START',
+    'End Date': 'END',
+    'PROGRESS ACTUAL': 'PROGRESS'
+}, inplace=True)
+contract_data['START'] = pd.to_datetime(contract_data['START'], errors='coerce')
+contract_data['END'] = pd.to_datetime(contract_data['END'], errors='coerce')
+contract_data['DURATION'] = (contract_data['END'] - contract_data['START']).dt.days
+contract_data['PROGRESS'] = pd.to_numeric(contract_data['PROGRESS'], errors='coerce')
+contract_data['TIME_GONE'] = ((pd.Timestamp.today() - contract_data['START']) / (contract_data['END'] - contract_data['START'])).clip(0, 1) * 100
 
-    # Clean column names
-    df.columns = [str(col).strip() for col in df.columns]
+# Metrics
+with st.columns(2)[0]:
+    st.markdown(metric_card("Total Contracts", len(contract_data), "All listed contracts", "📦"), unsafe_allow_html=True)
+    st.markdown(metric_card("Active Contracts", contract_data[contract_data['STATUS'] == 'ACTIVE'].shape[0], "Currently ongoing", "✅"), unsafe_allow_html=True)
+with st.columns(2)[1]:
+    st.markdown(metric_card("Non-Active Contracts", contract_data[contract_data['STATUS'].str.contains('NON ACTIVE', case=False, na=False)].shape[0], "Finished or inactive", "🔝"), unsafe_allow_html=True)
+    st.markdown(metric_card("Active Adendum Contracts", contract_data[contract_data['STATUS'].str.contains("ADENDUM", na=False, case=False)].shape[0], "Contracts with Adendum", "📝"), unsafe_allow_html=True)
 
-    # Rename for consistency
-    df.rename(columns={
-        'Start Date': 'START',
-        'End Date': 'END',
-        'PROGRESS ACTUAL': 'PROGRESS'
-    }, inplace=True)
+# Gantt Chart
+with section_card("🗖️ Gantt Chart - Contract Timelines"):
+    df_plot = contract_data.dropna(subset=['START', 'END']).sort_values('START')
+    fig_gantt = px.timeline(df_plot, x_start='START', x_end='END', y='KONTRAK', color='STATUS',
+                            hover_data=['DURATION', 'PROGRESS', 'TIME_GONE'], title="Contract Gantt Timeline")
+    fig_gantt.update_yaxes(autorange="reversed")
+    st.plotly_chart(fig_gantt, use_container_width=True)
 
-    df['START'] = pd.to_datetime(df['START'], errors='coerce')
-    df['END'] = pd.to_datetime(df['END'], errors='coerce')
-    df['DURATION'] = (df['END'] - df['START']).dt.days
-    df['PROGRESS'] = pd.to_numeric(df['PROGRESS'], errors='coerce')
+# KPI Bar Chart
+def get_color(pct):
+    return '#2ECC71' if pct >= 50 else '#E74C3C'
 
-    today = pd.Timestamp.today()
-    df['TIME_GONE'] = ((today - df['START']) / (df['END'] - df['START'])).clip(0, 1) * 100
+def build_kpi_bar(df_subset, title="Progress Pembayaran (%)"):
+    fig = go.Figure()
+    for _, row in df_subset.iterrows():
+        color = get_color(row['REALIZED_PCT'])
+        fig.add_trace(go.Bar(
+            y=[row['Vendor']], x=[row['REALIZED_PCT']], name='REALIZED (%)', orientation='h',
+            marker_color=color, text=f"{row['REALIZED_PCT']:.1f}%", textposition='inside',
+            hovertemplate=(f"<b>{row['Vendor']}</b><br>Total Kontrak: Rp {row['CONTRACT_VALUE']:,.0f}<br>"
+                           f"Terbayarkan: Rp {row['REALIZATION']:,.0f}<br>"
+                           f"Sisa: Rp {row['REMAINING']:,.0f}<br>"
+                           f"% Realisasi: {row['REALIZED_PCT']:.1f}%<extra></extra>"), showlegend=False))
+        fig.add_trace(go.Bar(
+            y=[row['Vendor']], x=[100 - row['REALIZED_PCT']], name='REMAINING (%)', orientation='h',
+            marker_color="#D0D3D4", text=f"{100 - row['REALIZED_PCT']:.1f}%", textposition='inside',
+            hoverinfo="skip", showlegend=False))
+    fig.update_layout(barmode='stack', title=title, xaxis=dict(title="Progress (%)", range=[0, 100]),
+                      yaxis=dict(title="", automargin=True), height=700)
+    return fig
 
-    # --- Metrics ---
-    total_contracts = len(df)
-    active_contracts = df[df['STATUS'] == 'ACTIVE'].shape[0]
-    non_active_contracts = df[df['STATUS'].str.contains('NON ACTIVE', case=False, na=False)].shape[0]
-    active_adendum_contracts = df[df['STATUS'].str.contains("ADENDUM", na=False, case=False)].shape[0]
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(metric_card("Total Contracts", total_contracts, "All listed contracts", "📦"), unsafe_allow_html=True)
-        st.markdown(metric_card("Active Contracts", active_contracts, "Currently ongoing", "✅"), unsafe_allow_html=True)
-    with col2:
-        st.markdown(metric_card("Non-Active Contracts", non_active_contracts, "Finished or inactive", "🔝"), unsafe_allow_html=True)
-        st.markdown(metric_card("Active Adendum Contracts", active_adendum_contracts, "Contracts with Adendum", "📝"), unsafe_allow_html=True)
-
-    # --- Gantt Chart ---
-    with section_card("🗖️ Gantt Chart - Contract Timelines"):
-        df_sorted = df.sort_values('START')
-        df_plot = df_sorted.dropna(subset=['START', 'END'])  # Only valid ones plotted
-        fig_gantt = px.timeline(
-            df_plot,
-            x_start='START',
-            x_end='END',
-            y='KONTRAK',
-            color='STATUS',
-            hover_data=['DURATION', 'PROGRESS', 'TIME_GONE'],
-            title="Contract Gantt Timeline"
-        )
-        fig_gantt.update_yaxes(autorange="reversed")
-        st.plotly_chart(fig_gantt, use_container_width=True)
-
-
-        import plotly.graph_objects as go
-
-        # --- Color Logic ---
-        def get_color(pct):
-            return '#2ECC71' if pct >= 50 else '#E74C3C'  # Green if ≥50%, Red otherwise
-
-        # --- Build Horizontal Bar Chart with Conditional Color and %
-        def build_kpi_bar(df_subset, title):
-            fig = go.Figure()
-            for _, row in df_subset.iterrows():
-                color = get_color(row['REALIZED_PCT'])
-
-                # Realized
-                fig.add_trace(go.Bar(
-                    y=[row['KONTRAK']],
-                    x=[row['REALIZATION']],
-                    name='REALIZED',
-                    orientation='h',
-                    marker=dict(color=color),
-                    text=f"{row['REALIZED_PCT']}%",
-                    textposition='inside',
-                    hovertemplate=(
-                        f"<b>{row['KONTRAK']}</b><br>"
-                        f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
-                        f"Realized: {row['REALIZATION']:.1f} M<br>"
-                        f"Remaining: {row['REMAINING']:.1f} M<br>"
-                        f"% Realized: {row['REALIZED_PCT']}%"
-                    ),
-                    showlegend=False
-                ))
-
-                # Remaining
-                fig.add_trace(go.Bar(
-                    y=[row['KONTRAK']],
-                    x=[row['REMAINING']],
-                    name='REMAINING',
-                    orientation='h',
-                    marker=dict(color='#D0D3D4'),
-                    text=f"{row['REMAINING']:.1f} M",
-                    textposition='inside',
-                    hovertemplate=(
-                        f"<b>{row['KONTRAK']}</b><br>"
-                        f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
-                        f"Realized: {row['REALIZATION']:.1f} M<br>"
-                        f"Remaining: {row['REMAINING']:.1f} M<br>"
-                        f"% Realized: {row['REALIZED_PCT']}%"
-                    ),
-                    showlegend=False
-                ))
-
-            fig.update_layout(
-                barmode='stack',
-                title=title,
-                xaxis=dict(
-                    title="Contract Value (Millions)",
-                    tickformat=".0f",
-                    showgrid=True,
-                    zeroline=True,
-                    rangeslider=dict(visible=True)  # Enables zoom via slider
-                ),
-                yaxis=dict(
-                    title="Project",
-                    automargin=True
-                ),
-                height=600,
-                margin=dict(l=300, r=50, t=60, b=50),
-                dragmode=False  # Disable drag-to-zoom
-            )
-            return fig
-
-        # --- Prepare Data ---
-        df_chart = df.copy()
-        df_chart.rename(columns={
-            'Nilai Kontrak 2023-2024': 'CONTRACT_VALUE',
-            'Realisasi On  2023-2024': 'REALIZATION'
-        }, inplace=True)
-
-        df_chart = df_chart[df_chart['CONTRACT_VALUE'].notna() & df_chart['REALIZATION'].notna()].copy()
-        df_chart['REMAINING'] = df_chart['CONTRACT_VALUE'] - df_chart['REALIZATION']
-        df_chart[['REALIZATION', 'REMAINING']] = df_chart[['REALIZATION', 'REMAINING']].clip(lower=0)
-        df_chart['REALIZED_PCT'] = (df_chart['REALIZATION'] / df_chart['CONTRACT_VALUE'] * 100).round(1)
-        df_chart.sort_values(by='CONTRACT_VALUE', ascending=False, inplace=True)
-
-        # Split top 5 and others
-        top5 = df_chart.head(5)
-        others = df_chart.iloc[5:]
-
-        # --- Display in Streamlit ---
-        with section_card("📊 Top 5 Contracts (Realization % and Conditional Color)"):
-            fig_top5 = build_kpi_bar(top5, "Top 5 Contracts by Value")
-            st.plotly_chart(fig_top5, use_container_width=True, config={
-                'scrollZoom': False,  # disable scroll-to-zoom
-                'displaylogo': False,
-                'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
-                'displayModeBar': 'always'
-            })
-
-        with section_card("📊 Remaining Contracts (Scaled View)"):
-            fig_others = build_kpi_bar(others, "Remaining Contracts by Value")
-            st.plotly_chart(fig_others, use_container_width=True, config={
-                'scrollZoom': False,  # disable scroll-to-zoom
-                'displaylogo': False,
-                'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
-                'displayModeBar': 'always'
-            })
-
-
-       
-
-    # --- Time-Based Progress Category ---
-        with section_card("📈 Project Progress Categories (Based on Time Elapsed)"):
-            bins = [-1, 30, 50, 80, 100]
-            labels = ['<30%', '30-50%', '50-80%', '>80%']
-            df['TIME_GONE_CAT'] = pd.cut(df['TIME_GONE'], bins=bins, labels=labels)
-
-            progress_counts = df['TIME_GONE_CAT'].value_counts().sort_index().reset_index()
-            progress_counts.columns = ['Progress Range', 'Count']
-            fig_progress = px.bar(progress_counts, x='Progress Range', y='Count', color='Progress Range',
-                                title="Project Progress by Time Elapsed", text='Count')
-            st.plotly_chart(fig_progress, use_container_width=True)
-
-    # --- Status Pie Chart and Filter Table ---
-    with section_card("📊 Contract Status Distribution and Filter"):
-        col_pie, col_table = st.columns(2)
-
-        with col_pie:
-            status_counts = df['STATUS'].value_counts().reset_index()
-            status_counts.columns = ['Status', 'Count']
-            fig_status = px.pie(status_counts, names='Status', values='Count', hole=0.4)
-            st.plotly_chart(fig_status, use_container_width=True)
-
-        with col_table:
-            status_filter = st.selectbox("Select Status", options=["All"] + df['STATUS'].unique().tolist())
-            if status_filter == "All":
-                filtered_df = df
-            else:
-                filtered_df = df[df['STATUS'] == status_filter]
-
-            st.dataframe(filtered_df[['KONTRAK', 'START', 'END', 'DURATION', 'STATUS', 'PROGRESS', 'TIME_GONE']].sort_values('END'), use_container_width=True)
-
-
-if uploaded_financial_file:
-    df_financial = pd.read_excel(uploaded_financial_file)
-    st.success("Financial progress file loaded!")
-    
-    import plotly.graph_objects as go
-
-    import plotly.graph_objects as go
-
-    def get_color(pct):
-        return '#2ECC71' if pct >= 50 else '#E74C3C'
-
-    def build_kpi_bar(df_subset, title="Progress Pembayaran (%)"):
-        fig = go.Figure()
-
-        for _, row in df_subset.iterrows():
-            kontrak_name = row['Vendor']
-            pct = row['REALIZED_PCT']
-            remaining_pct = 100 - pct
-            realized_value = row['REALIZATION']
-            remaining_value = row['REMAINING']
-            contract_value = row['CONTRACT_VALUE']
-
-            # Bar: Realisasi
-            fig.add_trace(go.Bar(
-                y=[kontrak_name],
-                x=[pct],
-                name='REALIZED (%)',
-                orientation='h',
-                marker_color=get_color(pct),
-                text=f"{pct:.1f}%",
-                textposition='inside',
-                hovertemplate=(
-                    f"<b>{kontrak_name}</b><br>"
-                    f"Total Kontrak: Rp {contract_value:,.0f}<br>"
-                    f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
-                    f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
-                ),
-                showlegend=False
-            ))
-
-            # Bar: Sisa
-            fig.add_trace(go.Bar(
-                y=[kontrak_name],
-                x=[remaining_pct],
-                name='REMAINING (%)',
-                orientation='h',
-                marker_color="#D0D3D4",
-                text=f"{remaining_pct:.1f}%",
-                textposition='inside',
-                hovertemplate=(
-                    f"<b>{kontrak_name}</b><br>"
-                    f"Total Kontrak: Rp {contract_value:,.0f}<br>"
-                    f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
-                    f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
-                ),
-                showlegend=False
-            ))
-
-        fig.update_layout(
-            barmode='stack',
-            title=title,
-            xaxis=dict(title="Progress (%)", range=[0, 100]),
-            yaxis=dict(title="", automargin=True),
-            height=700,
-            margin=dict(l=300, r=50, t=60, b=50),
-            dragmode=False
-        )
-
-        return fig
-
-    
-    with section_card("📊 Financial Progress Chart (from Uploaded File)"):
-        fig_fin = build_kpi_bar(df_financial, "Progress Pembayaran Seluruh Kontrak")
-        st.plotly_chart(fig_fin, use_container_width=True, config={
-            'scrollZoom': False,
-            'displaylogo': False,
-            'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
-            'displayModeBar': 'always'
-        })
-
-
-else:
-    st.info("Upload an Excel file containing the contract data.")
+if 'REALIZED_PCT' in financial_data.columns:
+    with section_card("📊 Financial Progress Chart"):
+        fig_fin = build_kpi_bar(financial_data, "Progress Pembayaran Seluruh Kontrak")
+        st.plotly_chart(fig_fin, use_container_width=True)
