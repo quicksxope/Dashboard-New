@@ -61,8 +61,8 @@ def metric_card(title, value, sub, icon="✅", bg="#2196f3"):
 
 
 # GitHub fallback URLs
-GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/default_contract_summary.xlsx"
-GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/default_financial_progress.xlsx"
+GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/contract_summary.xlsx"
+GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/Rekap_Vendor_Pembayaran_Final.xlsx"
 
 # File hash helper
 def get_file_hash(file):
