@@ -305,15 +305,17 @@ if contract_file:
 if financial_file:
     df_financial = pd.read_excel(financial_file)
     st.success("Financial progress file loaded!")
-    
-    import plotly.graph_objects as go
 
+    import plotly.graph_objects as go
 
     def get_color(pct):
         return '#2ECC71' if pct >= 50 else '#E74C3C'
 
     def build_kpi_bar(df_subset, title="Progress Pembayaran (%)"):
         fig = go.Figure()
+
+        show_legend_realized = True
+        show_legend_remaining = True
 
         for _, row in df_subset.iterrows():
             kontrak_name = row['Vendor']
@@ -323,11 +325,11 @@ if financial_file:
             remaining_value = row['REMAINING']
             contract_value = row['CONTRACT_VALUE']
 
-            # Bar: Realisasi
+            # Bar: Realisasi (Hijau)
             fig.add_trace(go.Bar(
                 y=[kontrak_name],
                 x=[pct],
-                name='REALIZED (%)',
+                name='REALIZED (%)' if show_legend_realized else None,
                 orientation='h',
                 marker_color=get_color(pct),
                 text=f"{pct:.1f}%",
@@ -338,14 +340,15 @@ if financial_file:
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
                 ),
-                showlegend=(i == 0)
+                showlegend=show_legend_realized
             ))
+            show_legend_realized = False
 
-            # Bar: Sisa
+            # Bar: Sisa (Abu)
             fig.add_trace(go.Bar(
                 y=[kontrak_name],
                 x=[remaining_pct],
-                name='REMAINING (%)',
+                name='REMAINING (%)' if show_legend_remaining else None,
                 orientation='h',
                 marker_color="#D0D3D4",
                 text=f"{remaining_pct:.1f}%",
@@ -356,8 +359,9 @@ if financial_file:
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
                 ),
-                showlegend=(i == 0)
+                showlegend=show_legend_remaining
             ))
+            show_legend_remaining = False
 
         fig.update_layout(
             barmode='stack',
@@ -365,14 +369,19 @@ if financial_file:
             xaxis=dict(title="Progress (%)", range=[0, 100]),
             yaxis=dict(title="", automargin=True),
             height=700,
-            
             margin=dict(l=300, r=50, t=60, b=50),
-            dragmode=False
+            dragmode=False,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
 
         return fig
 
-    
     with section_card("📊 Financial Progress Chart (from Uploaded File)"):
         fig_fin = build_kpi_bar(df_financial, "Progress Pembayaran Seluruh Kontrak")
         st.plotly_chart(fig_fin, use_container_width=True, config={
