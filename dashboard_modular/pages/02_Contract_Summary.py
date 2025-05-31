@@ -310,24 +310,26 @@ if financial_file:
 
 
     def get_color(pct):
-        return '#2ECC71' if pct >= 50 else '#E74C3C'
+    return '#2ECC71' if pct >= 50 else '#E74C3C'
 
     def build_kpi_bar(df_subset, title="Progress Pembayaran (%)"):
         fig = go.Figure()
-
-        for _, row in df_subset.iterrows():
+    
+        for idx, row in df_subset.iterrows():
             kontrak_name = row['Vendor']
             pct = row['REALIZED_PCT']
             remaining_pct = 100 - pct
             realized_value = row['REALIZATION']
             remaining_value = row['REMAINING']
             contract_value = row['CONTRACT_VALUE']
-
+    
             # Bar: Realisasi
             fig.add_trace(go.Bar(
                 y=[kontrak_name],
                 x=[pct],
                 name='REALIZED (%)',
+                legendgroup='realized',
+                showlegend=(idx == 0),
                 orientation='h',
                 marker_color=get_color(pct),
                 text=f"{pct:.1f}%",
@@ -337,15 +339,16 @@ if financial_file:
                     f"Total Kontrak: Rp {contract_value:,.0f}<br>"
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
-                ),
-                showlegend=False
+                )
             ))
-
+    
             # Bar: Sisa
             fig.add_trace(go.Bar(
                 y=[kontrak_name],
                 x=[remaining_pct],
                 name='REMAINING (%)',
+                legendgroup='remaining',
+                showlegend=(idx == 0),
                 orientation='h',
                 marker_color="#D0D3D4",
                 text=f"{remaining_pct:.1f}%",
@@ -355,10 +358,9 @@ if financial_file:
                     f"Total Kontrak: Rp {contract_value:,.0f}<br>"
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
-                ),
-                showlegend=True
+                )
             ))
-
+    
         fig.update_layout(
             barmode='stack',
             title=title,
@@ -368,18 +370,19 @@ if financial_file:
             margin=dict(l=300, r=50, t=60, b=50),
             dragmode=False
         )
-
+    
         return fig
 
-    
-    with section_card("📊 Financial Progress Chart (from Uploaded File)"):
-        fig_fin = build_kpi_bar(df_financial, "Progress Pembayaran Seluruh Kontrak")
-        st.plotly_chart(fig_fin, use_container_width=True, config={
-            'scrollZoom': False,
-            'displaylogo': False,
-            'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
-            'displayModeBar': 'always'
-        })
+
+with section_card("📊 Financial Progress Chart (from Uploaded File)"):
+    fig_fin = build_kpi_bar(df_financial, "Progress Pembayaran Seluruh Kontrak")
+    st.plotly_chart(fig_fin, use_container_width=True, config={
+        'scrollZoom': False,
+        'displaylogo': False,
+        'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
+        'displayModeBar': 'always'
+    })
+
 
 else:
     st.info("Upload an Excel file containing the contract data.")
