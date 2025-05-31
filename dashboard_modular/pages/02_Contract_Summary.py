@@ -338,7 +338,7 @@ if financial_file:
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
                 ),
-                showlegend=False
+                showlegend=True
             ))
 
             # Bar: Sisa
@@ -356,7 +356,7 @@ if financial_file:
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
                 ),
-                showlegend=False
+                showlegend=True
             ))
 
         fig.update_layout(
@@ -365,6 +365,7 @@ if financial_file:
             xaxis=dict(title="Progress (%)", range=[0, 100]),
             yaxis=dict(title="", automargin=True),
             height=700,
+            showlegend=True
             margin=dict(l=300, r=50, t=60, b=50),
             dragmode=False
         )
