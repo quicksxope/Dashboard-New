@@ -312,70 +312,70 @@ if financial_file:
     def get_color(pct):
     return '#2ECC71' if pct >= 50 else '#E74C3C'
 
-def build_kpi_bar(df_subset, title="Progress Pembayaran (%)"):
-    realized_pct = df_subset['REALIZED_PCT']
-    remaining_pct = 100 - realized_pct
-
-    fig = go.Figure()
-
-    # Trace: Realisasi
-    fig.add_trace(go.Bar(
-        y=df_subset['Vendor'],
-        x=realized_pct,
-        name='REALIZED (%)',
-        orientation='h',
-        marker_color=[get_color(pct) for pct in realized_pct],
-        text=[f"{pct:.1f}%" for pct in realized_pct],
-        textposition='inside',
-        hovertext=[
-            f"<b>{row['Vendor']}</b><br>"
-            f"Total Kontrak: Rp {row['CONTRACT_VALUE']:,.0f}<br>"
-            f"Terbayarkan: Rp {row['REALIZATION']:,.0f} ({row['REALIZED_PCT']:.1f}%)<br>"
-            f"Sisa: Rp {row['REMAINING']:,.0f} ({100 - row['REALIZED_PCT']:.1f}%)"
-            for _, row in df_subset.iterrows()
-        ],
-        hoverinfo="text",
-    ))
-
-    # Trace: Sisa
-    fig.add_trace(go.Bar(
-        y=df_subset['Vendor'],
-        x=remaining_pct,
-        name='REMAINING (%)',
-        orientation='h',
-        marker_color="#D0D3D4",
-        text=[f"{rem:.1f}%" for rem in remaining_pct],
-        textposition='inside',
-        hovertext=[
-            f"<b>{row['Vendor']}</b><br>"
-            f"Total Kontrak: Rp {row['CONTRACT_VALUE']:,.0f}<br>"
-            f"Terbayarkan: Rp {row['REALIZATION']:,.0f} ({row['REALIZED_PCT']:.1f}%)<br>"
-            f"Sisa: Rp {row['REMAINING']:,.0f} ({100 - row['REALIZED_PCT']:.1f}%)"
-            for _, row in df_subset.iterrows()
-        ],
-        hoverinfo="text",
-    ))
-
-    fig.update_layout(
-        barmode='stack',
-        title=title,
-        xaxis=dict(title="Progress (%)", range=[0, 100]),
-        yaxis=dict(title="", automargin=True),
-        height=700,
-        margin=dict(l=300, r=50, t=60, b=50),
-        dragmode=False,
-        legend=dict(
-            title="Keterangan",
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
+    def build_kpi_bar(df_subset, title="Progress Pembayaran (%)"):
+        realized_pct = df_subset['REALIZED_PCT']
+        remaining_pct = 100 - realized_pct
+    
+        fig = go.Figure()
+    
+        # Trace: Realisasi
+        fig.add_trace(go.Bar(
+            y=df_subset['Vendor'],
+            x=realized_pct,
+            name='REALIZED (%)',
+            orientation='h',
+            marker_color=[get_color(pct) for pct in realized_pct],
+            text=[f"{pct:.1f}%" for pct in realized_pct],
+            textposition='inside',
+            hovertext=[
+                f"<b>{row['Vendor']}</b><br>"
+                f"Total Kontrak: Rp {row['CONTRACT_VALUE']:,.0f}<br>"
+                f"Terbayarkan: Rp {row['REALIZATION']:,.0f} ({row['REALIZED_PCT']:.1f}%)<br>"
+                f"Sisa: Rp {row['REMAINING']:,.0f} ({100 - row['REALIZED_PCT']:.1f}%)"
+                for _, row in df_subset.iterrows()
+            ],
+            hoverinfo="text",
+        ))
+    
+        # Trace: Sisa
+        fig.add_trace(go.Bar(
+            y=df_subset['Vendor'],
+            x=remaining_pct,
+            name='REMAINING (%)',
+            orientation='h',
+            marker_color="#D0D3D4",
+            text=[f"{rem:.1f}%" for rem in remaining_pct],
+            textposition='inside',
+            hovertext=[
+                f"<b>{row['Vendor']}</b><br>"
+                f"Total Kontrak: Rp {row['CONTRACT_VALUE']:,.0f}<br>"
+                f"Terbayarkan: Rp {row['REALIZATION']:,.0f} ({row['REALIZED_PCT']:.1f}%)<br>"
+                f"Sisa: Rp {row['REMAINING']:,.0f} ({100 - row['REALIZED_PCT']:.1f}%)"
+                for _, row in df_subset.iterrows()
+            ],
+            hoverinfo="text",
+        ))
+    
+        fig.update_layout(
+            barmode='stack',
+            title=title,
+            xaxis=dict(title="Progress (%)", range=[0, 100]),
+            yaxis=dict(title="", automargin=True),
+            height=700,
+            margin=dict(l=300, r=50, t=60, b=50),
+            dragmode=False,
+            legend=dict(
+                title="Keterangan",
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
-    )
-
-    return fig
-
+    
+        return fig
+    
 
     
     with section_card("📊 Financial Progress Chart (from Uploaded File)"):
