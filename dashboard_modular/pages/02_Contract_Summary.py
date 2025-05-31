@@ -374,14 +374,14 @@ if financial_file:
             return fig
 
 
-with section_card("📊 Financial Progress Chart (from Uploaded File)"):
-    fig_fin = build_kpi_bar(df_financial, "Progress Pembayaran Seluruh Kontrak")
-    st.plotly_chart(fig_fin, use_container_width=True, config={
-        'scrollZoom': False,
-        'displaylogo': False,
-        'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
-        'displayModeBar': 'always'
-    })
+        with section_card("📊 Financial Progress Chart (from Uploaded File)"):
+            fig_fin = build_kpi_bar(df_financial, "Progress Pembayaran Seluruh Kontrak")
+            st.plotly_chart(fig_fin, use_container_width=True, config={
+                'scrollZoom': False,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['select2d', 'lasso2d'],
+                'displayModeBar': 'always'
+            })
 
 
 else:
