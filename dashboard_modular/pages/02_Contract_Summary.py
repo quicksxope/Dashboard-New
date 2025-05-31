@@ -158,73 +158,78 @@ if contract_file:
 
         import plotly.graph_objects as go
 
-        # --- Color Logic ---
-        def get_color(pct):
-            return '#2ECC71' if pct >= 50 else '#E74C3C'  # Green if ≥50%, Red otherwise
+       # --- Color Logic ---
+    def get_color(pct):
+        return '#2ECC71' if pct >= 50 else '#E74C3C'  # Green if ≥50%, Red otherwise
+    
+    # --- Build Horizontal Bar Chart with Conditional Color and %
+    def build_kpi_bar(df_subset, title):
+        fig = go.Figure()
+        
+        for idx, row in df_subset.iterrows():
+            color = get_color(row['REALIZED_PCT'])
+    
+            # Realized
+            fig.add_trace(go.Bar(
+                y=[row['KONTRAK']],
+                x=[row['REALIZATION']],
+                name='REALIZED',
+                legendgroup='realized',
+                showlegend=(idx == 0),
+                orientation='h',
+                marker=dict(color=color),
+                text=f"{row['REALIZED_PCT']}%",
+                textposition='inside',
+                hovertemplate=(
+                    f"<b>{row['KONTRAK']}</b><br>"
+                    f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
+                    f"Realized: {row['REALIZATION']:.1f} M<br>"
+                    f"Remaining: {row['REMAINING']:.1f} M<br>"
+                    f"% Realized: {row['REALIZED_PCT']}%"
+                )
+            ))
+    
+            # Remaining
+            fig.add_trace(go.Bar(
+                y=[row['KONTRAK']],
+                x=[row['REMAINING']],
+                name='REMAINING',
+                legendgroup='remaining',
+                showlegend=(idx == 0),
+                orientation='h',
+                marker=dict(color='#D0D3D4'),
+                text=f"{row['REMAINING']:.1f} M",
+                textposition='inside',
+                hovertemplate=(
+                    f"<b>{row['KONTRAK']}</b><br>"
+                    f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
+                    f"Realized: {row['REALIZATION']:.1f} M<br>"
+                    f"Remaining: {row['REMAINING']:.1f} M<br>"
+                    f"% Realized: {row['REALIZED_PCT']}%"
+                )
+            ))
+    
+        fig.update_layout(
+            barmode='stack',
+            title=title,
+            xaxis=dict(
+                title="Contract Value (Millions)",
+                tickformat=".0f",
+                showgrid=True,
+                zeroline=True,
+                rangeslider=dict(visible=True)
+            ),
+            yaxis=dict(
+                title="Project",
+                automargin=True
+            ),
+            height=600,
+            margin=dict(l=300, r=50, t=60, b=50),
+            dragmode=False
+        )
+        
+        return fig
 
-        # --- Build Horizontal Bar Chart with Conditional Color and %
-        def build_kpi_bar(df_subset, title):
-            fig = go.Figure()
-            for _, row in df_subset.iterrows():
-                color = get_color(row['REALIZED_PCT'])
-
-                # Realized
-                fig.add_trace(go.Bar(
-                    y=[row['KONTRAK']],
-                    x=[row['REALIZATION']],
-                    name='REALIZED',
-                    orientation='h',
-                    marker=dict(color=color),
-                    text=f"{row['REALIZED_PCT']}%",
-                    textposition='inside',
-                    hovertemplate=(
-                        f"<b>{row['KONTRAK']}</b><br>"
-                        f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
-                        f"Realized: {row['REALIZATION']:.1f} M<br>"
-                        f"Remaining: {row['REMAINING']:.1f} M<br>"
-                        f"% Realized: {row['REALIZED_PCT']}%"
-                    ),
-                    showlegend=False
-                ))
-
-                # Remaining
-                fig.add_trace(go.Bar(
-                    y=[row['KONTRAK']],
-                    x=[row['REMAINING']],
-                    name='REMAINING',
-                    orientation='h',
-                    marker=dict(color='#D0D3D4'),
-                    text=f"{row['REMAINING']:.1f} M",
-                    textposition='inside',
-                    hovertemplate=(
-                        f"<b>{row['KONTRAK']}</b><br>"
-                        f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
-                        f"Realized: {row['REALIZATION']:.1f} M<br>"
-                        f"Remaining: {row['REMAINING']:.1f} M<br>"
-                        f"% Realized: {row['REALIZED_PCT']}%"
-                    ),
-                    showlegend=False
-                ))
-
-            fig.update_layout(
-                barmode='stack',
-                title=title,
-                xaxis=dict(
-                    title="Contract Value (Millions)",
-                    tickformat=".0f",
-                    showgrid=True,
-                    zeroline=True,
-                    rangeslider=dict(visible=True)  # Enables zoom via slider
-                ),
-                yaxis=dict(
-                    title="Project",
-                    automargin=True
-                ),
-                height=600,
-                margin=dict(l=300, r=50, t=60, b=50),
-                dragmode=False  # Disable drag-to-zoom
-            )
-            return fig
 
         # --- Prepare Data ---
         df_chart = df.copy()
