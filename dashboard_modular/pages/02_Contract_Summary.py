@@ -18,7 +18,7 @@ def get_file_hash(file):
     return hashlib.md5(file.getvalue()).hexdigest()
 
 # URL raw file dari GitHub (ganti sesuai repo lo)
-GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/financial_progess.xlsx"
+GITHUB_FINANCIAL_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/financial_progress.xlsx"
 GITHUB_CONTRACT_FILE_URL = "https://raw.githubusercontent.com/quicksxope/Dashboard-New/main/data/data_kontrak_new.xlsx"
 
 
