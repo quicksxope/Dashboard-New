@@ -361,17 +361,17 @@ if financial_file:
                 )
             ))
     
-        fig.update_layout(
-            barmode='stack',
-            title=title,
-            xaxis=dict(title="Progress (%)", range=[0, 100]),
-            yaxis=dict(title="", automargin=True),
-            height=700,
-            margin=dict(l=300, r=50, t=60, b=50),
-            dragmode=False
-        )
-    
-        return fig
+            fig.update_layout(
+                barmode='stack',
+                title=title,
+                xaxis=dict(title="Progress (%)", range=[0, 100]),
+                yaxis=dict(title="", automargin=True),
+                height=700,
+                margin=dict(l=300, r=50, t=60, b=50),
+                dragmode=False
+            )
+        
+            return fig
 
 
 with section_card("📊 Financial Progress Chart (from Uploaded File)"):
