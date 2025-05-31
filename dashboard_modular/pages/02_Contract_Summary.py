@@ -365,7 +365,7 @@ if financial_file:
             xaxis=dict(title="Progress (%)", range=[0, 100]),
             yaxis=dict(title="", automargin=True),
             height=700,
-            showlegend=True
+            
             margin=dict(l=300, r=50, t=60, b=50),
             dragmode=False
         )
