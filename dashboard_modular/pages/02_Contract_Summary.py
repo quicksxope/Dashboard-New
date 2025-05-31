@@ -371,7 +371,7 @@ if financial_file:
                 dragmode=False
             )
         
-                return fig
+            return fig
 
 
         with section_card("📊 Financial Progress Chart (from Uploaded File)"):
