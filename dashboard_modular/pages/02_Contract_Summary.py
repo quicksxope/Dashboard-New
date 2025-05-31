@@ -338,7 +338,7 @@ if financial_file:
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
                 ),
-                showlegend=True
+                showlegend=(i == 0)
             ))
 
             # Bar: Sisa
@@ -356,7 +356,7 @@ if financial_file:
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
                 ),
-                showlegend=True
+                showlegend=(i == 0)
             ))
 
         fig.update_layout(
