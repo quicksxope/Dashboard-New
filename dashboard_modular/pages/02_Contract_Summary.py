@@ -351,7 +351,7 @@ if financial_file:
                     f"Terbayarkan: Rp {realized_value:,.0f} ({pct:.1f}%)<br>"
                     f"Sisa: Rp {remaining_value:,.0f} ({remaining_pct:.1f}%)<extra></extra>"
                 ),
-                showlegend=False
+                showlegend=True
             ))
 
         fig.update_layout(
