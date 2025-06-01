@@ -97,12 +97,18 @@ def get_color(pct): return '#2ECC71' if pct >= 50 else '#E74C3C'
 
 def build_kpi_bar(df_subset, title):
     fig = go.Figure()
-    for idx, row in df_subset.iterrows():
+
+    show_legend_realized = True
+    show_legend_remaining = True
+
+    for _, row in df_subset.iterrows():
         color = get_color(row['REALIZED_PCT'])
+
+        # REALIZED
         fig.add_trace(go.Bar(
             y=[row['KONTRAK']],
             x=[row['REALIZATION']],
-            name='REALIZED' if idx == 0 else None,
+            name='REALIZED',
             orientation='h',
             marker=dict(color=color),
             text=f"{row['REALIZED_PCT']}%",
@@ -113,17 +119,31 @@ def build_kpi_bar(df_subset, title):
                 f"Realized: {row['REALIZATION']:.1f} M<br>"
                 f"Remaining: {row['REMAINING']:.1f} M<br>"
                 f"% Realized: {row['REALIZED_PCT']}%"
-            )
+            ),
+            showlegend=show_legend_realized
         ))
+        show_legend_realized = False
+
+        # REMAINING
         fig.add_trace(go.Bar(
             y=[row['KONTRAK']],
             x=[row['REMAINING']],
-            name='REMAINING' if idx == 0 else None,
+            name='REMAINING',
             orientation='h',
             marker=dict(color='#D0D3D4'),
             text=f"{row['REMAINING']:.1f} M",
-            textposition='inside'
+            textposition='inside',
+            hovertemplate=(
+                f"<b>{row['KONTRAK']}</b><br>"
+                f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
+                f"Realized: {row['REALIZATION']:.1f} M<br>"
+                f"Remaining: {row['REMAINING']:.1f} M<br>"
+                f"% Realized: {row['REALIZED_PCT']}%"
+            ),
+            showlegend=show_legend_remaining
         ))
+        show_legend_remaining = False
+
     fig.update_layout(
         barmode='stack',
         title=title,
@@ -131,7 +151,14 @@ def build_kpi_bar(df_subset, title):
         yaxis=dict(automargin=True),
         height=600,
         margin=dict(l=300, r=50, t=60, b=50),
-        dragmode=False
+        dragmode=False,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
     return fig
 
