@@ -98,49 +98,75 @@ def get_color(pct): return '#2ECC71' if pct >= 50 else '#E74C3C'
 def build_kpi_bar(df_subset, title):
     fig = go.Figure()
 
-    show_legend_realized = True
+    show_legend_green = True
+    show_legend_red = True
     show_legend_remaining = True
 
     for _, row in df_subset.iterrows():
         color = get_color(row['REALIZED_PCT'])
+        kontrak_name = row['KONTRAK']
+        realized = row['REALIZATION']
+        remaining = row['REMAINING']
+        total = row['CONTRACT_VALUE']
+        pct = row['REALIZED_PCT']
 
-        # REALIZED
-        fig.add_trace(go.Bar(
-            y=[row['KONTRAK']],
-            x=[row['REALIZATION']],
-            name='REALIZED',
-            orientation='h',
-            marker=dict(color=color),
-            text=f"{row['REALIZED_PCT']}%",
-            textposition='inside',
-            hovertemplate=(
-                f"<b>{row['KONTRAK']}</b><br>"
-                f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
-                f"Realized: {row['REALIZATION']:.1f} M<br>"
-                f"Remaining: {row['REMAINING']:.1f} M<br>"
-                f"% Realized: {row['REALIZED_PCT']}%"
-            ),
-            showlegend=show_legend_realized
-        ))
-        show_legend_realized = False
+        # --- Realized Bar ---
+        if pct >= 50:
+            fig.add_trace(go.Bar(
+                y=[kontrak_name],
+                x=[realized],
+                name="REALIZED ≥ 50%" if show_legend_green else None,
+                orientation='h',
+                marker=dict(color="#2ECC71"),
+                text=f"{pct:.1f}%",
+                textposition='inside',
+                showlegend=show_legend_green,
+                hovertemplate=(
+                    f"<b>{kontrak_name}</b><br>"
+                    f"Total Contract: {total:.1f} M<br>"
+                    f"Realized: {realized:.1f} M<br>"
+                    f"Remaining: {remaining:.1f} M<br>"
+                    f"% Realized: {pct:.1f}%<extra></extra>"
+                )
+            ))
+            show_legend_green = False
+        else:
+            fig.add_trace(go.Bar(
+                y=[kontrak_name],
+                x=[realized],
+                name="REALIZED < 50%" if show_legend_red else None,
+                orientation='h',
+                marker=dict(color="#E74C3C"),
+                text=f"{pct:.1f}%",
+                textposition='inside',
+                showlegend=show_legend_red,
+                hovertemplate=(
+                    f"<b>{kontrak_name}</b><br>"
+                    f"Total Contract: {total:.1f} M<br>"
+                    f"Realized: {realized:.1f} M<br>"
+                    f"Remaining: {remaining:.1f} M<br>"
+                    f"% Realized: {pct:.1f}%<extra></extra>"
+                )
+            ))
+            show_legend_red = False
 
-        # REMAINING
+        # --- Remaining Bar ---
         fig.add_trace(go.Bar(
-            y=[row['KONTRAK']],
-            x=[row['REMAINING']],
-            name='REMAINING',
+            y=[kontrak_name],
+            x=[remaining],
+            name="REMAINING" if show_legend_remaining else None,
             orientation='h',
-            marker=dict(color='#D0D3D4'),
-            text=f"{row['REMAINING']:.1f} M",
+            marker=dict(color="#D0D3D4"),
+            text=f"{remaining:.1f} M",
             textposition='inside',
+            showlegend=show_legend_remaining,
             hovertemplate=(
-                f"<b>{row['KONTRAK']}</b><br>"
-                f"Total Contract: {row['CONTRACT_VALUE']:.1f} M<br>"
-                f"Realized: {row['REALIZATION']:.1f} M<br>"
-                f"Remaining: {row['REMAINING']:.1f} M<br>"
-                f"% Realized: {row['REALIZED_PCT']}%"
-            ),
-            showlegend=show_legend_remaining
+                f"<b>{kontrak_name}</b><br>"
+                f"Total Contract: {total:.1f} M<br>"
+                f"Realized: {realized:.1f} M<br>"
+                f"Remaining: {remaining:.1f} M<br>"
+                f"% Realized: {pct:.1f}%<extra></extra>"
+            )
         ))
         show_legend_remaining = False
 
@@ -161,6 +187,7 @@ def build_kpi_bar(df_subset, title):
         )
     )
     return fig
+
 
 # --- Main Processing ---
 if contract_file:
